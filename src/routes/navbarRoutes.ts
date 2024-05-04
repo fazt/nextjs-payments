@@ -6,6 +6,11 @@ import {
 
 export const navbarRoutes = [
   {
+    href: "/subscriptions",
+    text: "Suscribete",
+    auth: false,
+  },
+  {
     href: "/products",
     text: "Products",
     auth: false,

@@ -6,6 +6,8 @@ import { Bars3Icon, XMarkIcon } from "@heroicons/react/24/outline";
 import { navbarRoutes } from "@/routes/navbarRoutes";
 import Link from "next/link";
 import Image from "next/image";
+import { Badge } from "@/components/ui";
+import { useCartStore } from "@/store/cartStore";
 
 const footerNavigation = {
   solutions: [
@@ -40,6 +42,8 @@ interface Props {
 
 export default function LandingLayout({ children }: Props) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const cart = useCartStore((state) => state.cart);
+  console.log(cart);
 
   return (
     <div className="bg-white">
@@ -81,6 +85,12 @@ export default function LandingLayout({ children }: Props) {
                 {item.text}
               </Link>
             ))}
+
+            <Link href="/cart">
+              <h3>
+                Cart <Badge>{cart.length}</Badge>
+              </h3>
+            </Link>
           </div>
           <div className="hidden lg:flex lg:flex-1 lg:justify-end">
             <Link

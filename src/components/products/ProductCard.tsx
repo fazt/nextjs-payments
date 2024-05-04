@@ -2,6 +2,8 @@
 import { Product, User } from "@prisma/client";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { Button } from "../ui";
+import { useCartStore } from "@/store/cartStore";
 
 interface Props {
   product: Product & {
@@ -11,14 +13,12 @@ interface Props {
 
 function ProductCard({ product }: Props) {
   const router = useRouter();
+  const addToCart = useCartStore((state) => state.addToCart);
 
   return (
     <div
       key={product.id}
       className="group relative flex flex-col overflow-hidden rounded-lg border border-gray-200 bg-white"
-      onClick={() => {
-        router.push(`/products/${product.slug}`);
-      }}
     >
       <div className="aspect-h-4 aspect-w-3 bg-gray-200 sm:aspect-none group-hover:opacity-75 sm:h-96">
         <Image
@@ -32,10 +32,7 @@ function ProductCard({ product }: Props) {
       <div className="flex flex-1 flex-col space-y-2 p-4">
         <div className="flex justify-between">
           <h3 className="text-sm font-medium text-gray-900">
-            <a href="#">
-              <span aria-hidden="true" className="absolute inset-0" />
-              {product.name}
-            </a>
+            <a href="#">{product.name}</a>
           </h3>
           <div>
             <Image
@@ -52,6 +49,13 @@ function ProductCard({ product }: Props) {
         <div className="flex flex-1 flex-col justify-end">
           <p className="text-sm italic text-gray-500">{product.stock}</p>
           <p className="text-base font-medium text-gray-900">{product.price}</p>
+          <Button
+            onClick={async () => {
+              addToCart(product);
+            }}
+          >
+            Add to cart
+          </Button>
         </div>
       </div>
     </div>

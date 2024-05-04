@@ -30,8 +30,10 @@
     "react-quill": "^2.0.0",
     "react-select": "^5.8.0",
     "sonner": "^1.4.41",
+    "stripe": "^15.5.0",
     "tailwind-merge": "^2.2.2",
-    "zod": "^3.22.4"
+    "zod": "^3.22.4",
+    "zustand": "^4.5.2"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.4.2",

@@ -36,9 +36,10 @@ function ProductForm({ categories }: Props) {
 
       const uploadData = await result.json();
       data.image = uploadData.secure_url;
+    } else {
+      delete data.image;
     }
 
-    delete data.image;
 
     await fetch("/api/products", {
       method: "POST",

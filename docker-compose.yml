@@ -8,4 +8,4 @@ services:
       POSTGRES_PASSWORD: faztpassword
       POSTGRES_DB: nextfulldb
     ports:
-      - 5432:5432
+      - 5444:5432

@@ -12,6 +12,20 @@ Table User {
   role String [default: 'user']
   created_at DateTime [default: `now()`, not null]
   products Product [not null]
+  orders Order [not null]
+  Payments Payments [not null]
+  subscriptionId String
+  SubscriptionPlan SubscriptionPlan
+  subscriptionPlanId Int
+}
+
+Table SubscriptionPlan {
+  id Int [pk, increment]
+  name String [not null]
+  description String [not null]
+  price Float [not null]
+  created_at DateTime [default: `now()`, not null]
+  users User [not null]
 }
 
 Table Category {
@@ -34,6 +48,8 @@ Table Product {
   author User [not null]
   created_at DateTime [default: `now()`, not null]
   categories ProductCategory [not null]
+  orders Order [not null]
+  orderDetails OrderDetails [not null]
 }
 
 Table ProductCategory {
@@ -44,8 +60,57 @@ Table ProductCategory {
   category Category [not null]
 }
 
+Table Payments {
+  id Int [pk, increment]
+  total Float [not null]
+  user User [not null]
+  userId Int [not null]
+  order Order [not null]
+  orderId Int [not null]
+  created_at DateTime [default: `now()`, not null]
+}
+
+Table Order {
+  id Int [pk, increment]
+  total Float [not null]
+  user User [not null]
+  userId Int [not null]
+  created_at DateTime [default: `now()`, not null]
+  products Product [not null]
+  payments Payments [not null]
+  orderDetails OrderDetails [not null]
+}
+
+Table OrderDetails {
+  id Int [pk, increment]
+  quantity Int [not null]
+  price Float [not null]
+  product Product [not null]
+  productId Int [not null]
+  order Order [not null]
+  orderId Int [not null]
+  created_at DateTime [default: `now()`, not null]
+}
+
+Table OrderToProduct {
+  ordersId Int [ref: > Order.id]
+  productsId Int [ref: > Product.id]
+}
+
+Ref: User.subscriptionPlanId > SubscriptionPlan.id
+
 Ref: Product.authorId > User.id
 
 Ref: ProductCategory.productId > Product.id
 
 Ref: ProductCategory.categoryId > Category.id
+
+Ref: Payments.userId > User.id
+
+Ref: Payments.orderId > Order.id
+
+Ref: Order.userId > User.id
+
+Ref: OrderDetails.productId > Product.id
+
+Ref: OrderDetails.orderId > Order.id

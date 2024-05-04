@@ -15,6 +15,7 @@ declare module "next-auth" {
       lastname: string;
       role: string;
       confirmed_email: boolean;
+      subscriptionId: string;
     };
   }
 }

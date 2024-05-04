@@ -34,20 +34,33 @@ export const authOptions: AuthOptions = {
 
         return {
           id: userFound.id + "",
-          name: userFound.name,
-          email: userFound?.email,
-          image: "",
-          lastname: userFound.last_name,
-          role: userFound.role,
-          confirmed_email: userFound.confirmed_email,
+          // name: userFound.name,
+          // email: userFound?.email,
+          // image: "",
+          // lastname: userFound.last_name,
+          // role: userFound.role,
+          // confirmed_email: userFound.confirmed_email,
+          ...userFound, // subbscriptionId: "null"
         };
       },
     }),
   ],
   callbacks: {
-    jwt({ token, user }) {
+    jwt({ token, user, trigger, session }) {
       if (user) {
         token = { ...token, ...user };
+      }
+
+      console.log({ user, trigger, session });
+
+      if (trigger === "update" && session.user) {
+        token.user = {
+          ...(token.user as any),
+          ...session.user,
+          user: {
+            subscriptionId: session.user.subscriptionId,
+          },
+        };
       }
 
       return token;

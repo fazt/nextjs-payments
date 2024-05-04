@@ -12,15 +12,33 @@ datasource db {
 }
 
 model User {
-  id              Int       @id @default(autoincrement())
+  id              Int        @id @default(autoincrement())
   name            String
   last_name       String
-  email           String    @unique
+  email           String     @unique
   password        String
-  confirmed_email Boolean?  @default(false)
-  role            String?   @default("user") // admin
-  created_at      DateTime  @default(now())
+  confirmed_email Boolean?   @default(false)
+  role            String?    @default("user") // admin
+  created_at      DateTime   @default(now())
   products        Product[]
+  orders          Order[]
+  Payments        Payments[]
+  subscriptionId  String?
+
+  SubscriptionPlan   SubscriptionPlan? @relation(fields: [subscriptionPlanId], references: [id])
+  subscriptionPlanId Int?
+}
+
+// model UsersPlans 
+
+model SubscriptionPlan {
+  id          Int      @id @default(autoincrement())
+  name        String // basico, premium, gold
+  description String
+  price       Float // 
+  created_at  DateTime @default(now())
+
+  users User[]
 }
 
 model Category {
@@ -46,6 +64,9 @@ model Product {
   created_at DateTime @default(now())
 
   categories ProductCategory[]
+
+  orders       Order[]
+  orderDetails OrderDetails[]
 }
 
 model ProductCategory {
@@ -56,4 +77,39 @@ model ProductCategory {
 
   categoryId Int
   category   Category @relation(fields: [categoryId], references: [id])
+}
+
+model Payments {
+  id     Int   @id @default(autoincrement())
+  total  Float
+  user   User  @relation(fields: [userId], references: [id])
+  userId Int
+
+  order   Order @relation(fields: [orderId], references: [id])
+  orderId Int
+
+  created_at DateTime @default(now())
+}
+
+model Order {
+  id         Int      @id @default(autoincrement())
+  total      Float
+  user       User     @relation(fields: [userId], references: [id])
+  userId     Int
+  created_at DateTime @default(now())
+
+  products     Product[]
+  payments     Payments[]
+  orderDetails OrderDetails[]
+}
+
+model OrderDetails {
+  id         Int      @id @default(autoincrement())
+  quantity   Int
+  price      Float
+  product    Product  @relation(fields: [productId], references: [id])
+  productId  Int
+  order      Order    @relation(fields: [orderId], references: [id])
+  orderId    Int
+  created_at DateTime @default(now())
 }
