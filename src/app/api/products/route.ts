@@ -20,6 +20,7 @@ export async function POST(request: Request) {
       price: parseFloat(data.price),
       image: data.image,
       authorId: Number(session.user.id),
+      stock: parseInt(data.stock),
     },
   });
 

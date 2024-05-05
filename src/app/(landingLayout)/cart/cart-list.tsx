@@ -3,6 +3,7 @@ import { Card, Button } from "@/components/ui";
 import { useCartStore } from "@/store/cartStore";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { PaypalButton } from "./paypal-button";
 
 export function CartList() {
   const cart = useCartStore((state) => state.cart);
@@ -26,7 +27,12 @@ export function CartList() {
               <p>{product.description}</p>
               <p>{product.price}</p>
             </div>
-            <div className="flex items-center">
+            <div className="flex flex-col items-center">
+              <div className="flex mb-5">
+                <Button>-</Button>
+                <span>{product.quantity}</span>
+                <Button>+</Button>
+              </div>
               <Button onClick={() => removeFromCart(product)}>
                 Remove from cart
               </Button>
@@ -48,11 +54,14 @@ export function CartList() {
             });
             const data = await result.json();
 
-            window.location.href = data.url;
+            if (result.ok) {
+              window.location.href = data.url;
+            }
           }}
         >
-          Pagar {cart.reduce((acc, p) => acc + p.price, 0)} $
+          Pagar {cart.reduce((acc, p) => acc + p.price * p.quantity, 0)}
         </Button>
+        <PaypalButton />
       </div>
     </div>
   );

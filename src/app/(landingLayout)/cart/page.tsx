@@ -1,5 +1,4 @@
 import { CartList } from "./cart-list";
-import { Stripe } from "stripe";
 
 function CartPage() {
   return (

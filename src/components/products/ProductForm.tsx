@@ -73,6 +73,9 @@ function ProductForm({ categories }: Props) {
         <Label>Precio</Label>
         <Input {...register("price")} type="number" defaultValue={0} />
 
+        <Label>Stock</Label>
+        <Input {...register("stock")} type="number" defaultValue={0} />
+
         <Label>Imagen</Label>
         <Input type="file" {...register("image")} />
 

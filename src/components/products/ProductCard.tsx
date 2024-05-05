@@ -12,7 +12,6 @@ interface Props {
 }
 
 function ProductCard({ product }: Props) {
-  const router = useRouter();
   const addToCart = useCartStore((state) => state.addToCart);
 
   return (
@@ -50,6 +49,7 @@ function ProductCard({ product }: Props) {
           <p className="text-sm italic text-gray-500">{product.stock}</p>
           <p className="text-base font-medium text-gray-900">{product.price}</p>
           <Button
+            disabled={product.stock === 0}
             onClick={async () => {
               addToCart(product);
             }}

@@ -7,44 +7,68 @@ import { authOptions } from "@/libs/authOptions";
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
 
 export async function POST(request: Request) {
-  const data = await request.json();
-  const productsIds = data.map((product: any) => product.id);
-  const session = await getServerSession(authOptions);
+  try {
+    const cart = await request.json();
+    const session = await getServerSession(authOptions);
 
-  const products = await prisma.product.findMany({
-    where: {
-      id: {
-        in: productsIds,
-      },
-    },
-  });
+    const productsIds = cart.map((product: any) => product.id);
 
-  const result = await stripe.checkout.sessions.create({
-    payment_method_types: ["card"],
-    metadata: {
-      userId: session?.user.id,
-      productsIds: productsIds.join(","), // "1,2,3"
-    },
-    line_items: [
-      ...products.map((product) => ({
-        price_data: {
-          currency: "usd",
-          product_data: {
-            name: product.name,
-            // images: [product.image],
-          },
-          unit_amount: product.price * 100,
+    const products = await prisma.product.findMany({
+      where: {
+        id: {
+          in: productsIds,
         },
-        quantity: 1,
-      })),
-    ],
-    success_url: "http://localhost:3000/success",
-    cancel_url: "http://localhost:3000/cart",
-    // pago por suscripción
-    mode: "payment",
-  });
+      },
+    });
 
-  console.log(result);
+    const productsWithQuantity = products.map((product) => {
+      const productInCart = cart.find((p: any) => p.id === product.id);
 
-  return NextResponse.json({ url: result.url });
+      return {
+        ...product,
+        quantity: productInCart.quantity,
+      };
+    });
+
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 400 });
+    }
+
+    const productString = JSON.stringify(
+      productsWithQuantity.map((product) => ({
+        id: product.id,
+        quantity: product.quantity,
+      }))
+    );
+
+    const result = await stripe.checkout.sessions.create({
+      payment_method_types: ["card"],
+      metadata: {
+        userId: session.user.id,
+        products: productString,
+      },
+      line_items: [
+        ...products.map((product) => ({
+          price_data: {
+            currency: "usd",
+            product_data: {
+              name: product.name,
+            },
+            unit_amount: product.price * 100,
+          },
+          quantity: productsWithQuantity.find((p) => p.id === product.id)
+            ?.quantity,
+        })),
+      ],
+      success_url: "http://localhost:2999/success",
+      cancel_url: "http://localhost:2999/cart",
+      // pago por suscripción
+      mode: "payment",
+    });
+
+    return NextResponse.json({ url: result.url });
+  } catch (error) {
+    console.log(error);
+    return NextResponse.json({ error: "Error" }, { status: 400 });
+  }
 }

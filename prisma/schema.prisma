@@ -79,16 +79,19 @@ model ProductCategory {
   category   Category @relation(fields: [categoryId], references: [id])
 }
 
-model Payments {
+model OrderHistory {
   id     Int   @id @default(autoincrement())
   total  Float
-  user   User  @relation(fields: [userId], references: [id])
+  user   User  @relation(fields: [userId], references: [id]) // usuario del sistema
   userId Int
 
-  order   Order @relation(fields: [orderId], references: [id])
-  orderId Int
+  // order   Order @relation(fields: [orderId], references: [id])
+  // orderId Int // 
+  orderId String
 
   created_at DateTime @default(now())
+  // Order      Order    @relation(fields: [orderId], references: [id])
+  // Order      Order    @relation(fields: [orderId], references: [id])
 }
 
 model Order {

@@ -18,6 +18,12 @@ export const createProductSchema = z.object({
     },
     { message: "El precio debe ser un número" }
   ),
+  stock: z.string().refine(
+    (value) => {
+      return !isNaN(parseInt(value));
+    },
+    { message: "El stock debe ser un número" }
+  ),
   // nodelist instance
   image: z.instanceof(FileList).optional(),
   slug: z

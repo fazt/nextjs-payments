@@ -88,7 +88,9 @@ export default function LandingLayout({ children }: Props) {
 
             <Link href="/cart">
               <h3>
-                Cart <Badge>{cart.length}</Badge>
+                Cart <Badge>{
+                  cart.reduce((acc, item) => acc + item.quantity, 0)
+                  }</Badge>
               </h3>
             </Link>
           </div>

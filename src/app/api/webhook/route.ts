@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import prisma from "@/libs/prisma";
 
+// https://2kwmbfhd-3000.brs.devtunnels.ms/
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
-const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET as string;
+const endpointSecret = process.env.STRIPE_ENDPOINT_SECRET as string;
 
 export async function POST(request: Request) {
   const body = await request.text();
@@ -35,10 +36,10 @@ export async function POST(request: Request) {
     case "checkout.session.completed":
       const checkoutSessionCompleted = event.data.object;
       if (checkoutSessionCompleted.mode === "payment") {
-        const userId = checkoutSessionCompleted.metadata.userId as string;
-        const productsIds = checkoutSessionCompleted.metadata.productsIds
-          .split(",")
-          .map((id) => parseInt(id));
+        const userId = checkoutSessionCompleted.metadata!.userId as string;
+        const products = JSON.parse(
+          checkoutSessionCompleted.metadata!.products as string
+        );
 
         const userFound = await prisma.user.findUnique({
           where: {
@@ -58,15 +59,19 @@ export async function POST(request: Request) {
           );
         }
 
-        const products = await prisma.product.findMany({
+        const productsDB = await prisma.product.findMany({
           where: {
             id: {
-              in: productsIds,
+              in: products.map((product: any) => product.id),
             },
           },
         });
 
-        const total = products.reduce((acc, product) => acc + product.price, 0);
+        const total = productsDB.reduce((acc, product) => {
+          const productInCart = products.find((p: any) => p.id === product.id);
+
+          return acc + product.price * productInCart.quantity;
+        }, 0);
 
         const newOrder = await prisma.order.create({
           data: {
@@ -76,17 +81,27 @@ export async function POST(request: Request) {
         });
 
         await prisma.orderDetails.createMany({
-          data: products.map((product) => ({
+          data: productsDB.map((product) => ({
             orderId: newOrder.id,
             productId: product.id,
             price: product.price,
-            quantity: 1,
+            quantity: products.find((p: any) => p.id === product.id)?.quantity,
           })),
         });
 
-        // const newOrder = await prisma.order.create({
-        //   data:
-        // })
+        // reducir stock
+        for (const product of products) {
+          await prisma.product.update({
+            where: {
+              id: product.id,
+            },
+            data: {
+              stock: {
+                decrement: product.quantity,
+              },
+            },
+          });
+        }
       }
 
       if (checkoutSessionCompleted.mode === "subscription") {
