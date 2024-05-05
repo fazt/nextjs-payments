@@ -18,13 +18,12 @@ model User {
   email           String     @unique
   password        String
   confirmed_email Boolean?   @default(false)
-  role            String?    @default("user") // admin, supervisor, user1, user2
+  role            String?    @default("user") // admin
   created_at      DateTime   @default(now())
   products        Product[]
   orders          Order[]
   Payments        Payments[]
-
-  subscriptionId  String? // 61236123123123123213
+  subscriptionId  String?
 
   SubscriptionPlan   SubscriptionPlan? @relation(fields: [subscriptionPlanId], references: [id])
   subscriptionPlanId Int?
@@ -80,19 +79,16 @@ model ProductCategory {
   category   Category @relation(fields: [categoryId], references: [id])
 }
 
-model OrderHistory {
+model Payments {
   id     Int   @id @default(autoincrement())
   total  Float
   user   User  @relation(fields: [userId], references: [id]) // usuario del sistema
   userId Int
 
-  // order   Order @relation(fields: [orderId], references: [id])
-  // orderId Int // 
-  orderId String
+  order   Order @relation(fields: [orderId], references: [id])
+  orderId Int //
 
   created_at DateTime @default(now())
-  // Order      Order    @relation(fields: [orderId], references: [id])
-  // Order      Order    @relation(fields: [orderId], references: [id])
 }
 
 model Order {
