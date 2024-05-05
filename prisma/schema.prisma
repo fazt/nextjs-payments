@@ -18,12 +18,13 @@ model User {
   email           String     @unique
   password        String
   confirmed_email Boolean?   @default(false)
-  role            String?    @default("user") // admin
+  role            String?    @default("user") // admin, supervisor, user1, user2
   created_at      DateTime   @default(now())
   products        Product[]
   orders          Order[]
   Payments        Payments[]
-  subscriptionId  String?
+
+  subscriptionId  String? // 61236123123123123213
 
   SubscriptionPlan   SubscriptionPlan? @relation(fields: [subscriptionPlanId], references: [id])
   subscriptionPlanId Int?
