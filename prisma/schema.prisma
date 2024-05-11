@@ -12,33 +12,48 @@ datasource db {
 }
 
 model User {
-  id              Int        @id @default(autoincrement())
-  name            String
-  last_name       String
-  email           String     @unique
-  password        String
-  confirmed_email Boolean?   @default(false)
-  role            String?    @default("user") // admin
-  created_at      DateTime   @default(now())
-  products        Product[]
-  orders          Order[]
-  Payments        Payments[]
-  subscriptionId  String?
+  id                   Int        @id @default(autoincrement())
+  name                 String
+  last_name            String
+  email                String     @unique
+  password             String
+  confirmed_email      Boolean?   @default(false)
+  role                 String?    @default("user") // admin
+  created_at           DateTime   @default(now())
+  products             Product[]
+  orders               Order[]
+  Payments             Payments[]
 
-  SubscriptionPlan   SubscriptionPlan? @relation(fields: [subscriptionPlanId], references: [id])
-  subscriptionPlanId Int?
+  
+  subscriptionProvider String? // stripe, paypal, mercadopago
+  subscriptionId String? // id de la suscripcion en stripe, paypal, mercadopago //1
+  status         String? // ACTIVE, CANCELLED, PENDING 
+  startedAt      DateTime? // fecha de inicio de la suscripcion
+
+  userSubscriptionId Int?
+  // userSubscription   UsersSubscriptions @relation(fields: [userSubscriptionId], references: [id])
 }
+
+// model UsersSubscriptions {
+//   id             Int      @id @default(autoincrement())
+//   subscriptionId String // id de la suscripcion en stripe, paypal, mercadopago
+//   created_at     DateTime @default(now())
+//   status         String // ACTIVE, CANCELLED, PENDING
+
+//   payerId Int
+//   // payer   User @relation(fields: [payerId], references: [id])
+// }
 
 // model UsersPlans 
 
-model SubscriptionPlan {
+model SubscriptionPlan { // 1 - I-123123123123
   id          Int      @id @default(autoincrement())
   name        String // basico, premium, gold
   description String
   price       Float // 
   created_at  DateTime @default(now())
 
-  users User[]
+  // users User[]
 }
 
 model Category {

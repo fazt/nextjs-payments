@@ -14,9 +14,11 @@ Table User {
   products Product [not null]
   orders Order [not null]
   Payments Payments [not null]
+  subscriptionProvider String
   subscriptionId String
-  SubscriptionPlan SubscriptionPlan
-  subscriptionPlanId Int
+  status String
+  startedAt DateTime
+  userSubscriptionId Int
 }
 
 Table SubscriptionPlan {
@@ -25,7 +27,6 @@ Table SubscriptionPlan {
   description String [not null]
   price Float [not null]
   created_at DateTime [default: `now()`, not null]
-  users User [not null]
 }
 
 Table Category {
@@ -96,8 +97,6 @@ Table OrderToProduct {
   ordersId Int [ref: > Order.id]
   productsId Int [ref: > Product.id]
 }
-
-Ref: User.subscriptionPlanId > SubscriptionPlan.id
 
 Ref: Product.authorId > User.id
 

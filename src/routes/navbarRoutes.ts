@@ -47,6 +47,12 @@ export const dashboardRoutes = [
     icon: FolderIcon,
   },
   {
+    href: "/dashboard/subscriptions",
+    text: "Subscriptions",
+    roles: ["admin", "user"],
+    icon: FolderIcon,
+  },
+  {
     href: "/dashboard/categories",
     text: "Categorias",
     roles: ["admin"],

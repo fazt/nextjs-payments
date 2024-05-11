@@ -111,6 +111,7 @@ export async function POST(request: Request) {
           },
           data: {
             subscriptionId: checkoutSessionCompleted.subscription as string,
+            subscriptionProvider: "stripe",
           },
         });
       }
