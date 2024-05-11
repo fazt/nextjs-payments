@@ -62,6 +62,18 @@ export function CartList() {
           Pagar {cart.reduce((acc, p) => acc + p.price * p.quantity, 0)}
         </Button>
         <PaypalButton />
+        <Button
+          className="bg-blue-500 hover:bg-blue-700"
+          onClick={async () => {
+            const res = await fetch("/api/payments/mercadopago/checkout", {
+              method: "POST",
+            });
+            const data = await res.json();
+            console.log(data);
+          }}
+        >
+          Pagar con MercadoPago
+        </Button>
       </div>
     </div>
   );
