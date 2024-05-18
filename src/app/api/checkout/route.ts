@@ -66,7 +66,7 @@ export async function POST(request: Request) {
       mode: "payment",
     });
 
-    return NextResponse.json({ url: result.url });
+    return NextResponse.json(result);
   } catch (error) {
     console.log(error);
     return NextResponse.json({ error: "Error" }, { status: 400 });

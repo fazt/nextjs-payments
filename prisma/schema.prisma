@@ -100,8 +100,10 @@ model Payments {
   user   User  @relation(fields: [userId], references: [id]) // usuario del sistema
   userId Int
 
-  order   Order @relation(fields: [orderId], references: [id])
-  orderId Int //
+  order   Order? @relation(fields: [orderId], references: [id])
+  orderId Int? // id de la orden de stripe y paypal
+  paymentId Int? // id de pago de mercadopago
+  provider String // stripe, paypal, mercadopago
 
   created_at DateTime @default(now())
 }

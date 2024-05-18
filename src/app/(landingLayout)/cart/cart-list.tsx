@@ -4,13 +4,34 @@ import { useCartStore } from "@/store/cartStore";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { PaypalButton } from "./paypal-button";
+import { initMercadoPago, Wallet } from "@mercadopago/sdk-react";
+import { useEffect, useState } from "react";
+
+initMercadoPago("TEST-4dd4f7db-2104-497f-b849-9953b57cb77e");
 
 export function CartList() {
   const cart = useCartStore((state) => state.cart);
   const removeFromCart = useCartStore((state) => state.removeFromCart);
   const router = useRouter();
+  const [preferenceId, setPreferenceId] = useState("");
 
   const { data: session } = useSession();
+
+  useEffect(() => {
+    async function load() {
+      if (cart.length === 0) return;
+
+      const res = await fetch("/api/payments/mercadopago/checkout", {
+        method: "POST",
+        body: JSON.stringify(cart),
+      });
+      const data = await res.json();
+
+      console.log(data);
+      setPreferenceId(data.id);
+    }
+    load();
+  }, [cart]);
 
   return (
     <div>
@@ -67,13 +88,25 @@ export function CartList() {
           onClick={async () => {
             const res = await fetch("/api/payments/mercadopago/checkout", {
               method: "POST",
+              body: JSON.stringify(cart),
             });
             const data = await res.json();
             console.log(data);
+
+            window.location.href = data.init_point;
           }}
         >
           Pagar con MercadoPago
         </Button>
+
+        {/* <div id="wallet_container"></div> */}
+
+        {preferenceId && (
+          <Wallet
+            initialization={{ preferenceId: preferenceId }}
+            customization={{ texts: { valueProp: "smart_option" } }}
+          />
+        )}
       </div>
     </div>
   );

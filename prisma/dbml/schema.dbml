@@ -66,8 +66,10 @@ Table Payments {
   total Float [not null]
   user User [not null]
   userId Int [not null]
-  order Order [not null]
-  orderId Int [not null]
+  order Order
+  orderId Int
+  paymentId Int
+  provider String [not null]
   created_at DateTime [default: `now()`, not null]
 }
 
