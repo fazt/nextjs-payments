@@ -1,41 +1,56 @@
-import { redirect } from "next/navigation";
+import Link from "next/link";
+import { getStripe } from "@/libs/stripe";
+import { getSession } from "@/libs/session";
 import UpdateSession from "./update-session";
-import Stripe from "stripe";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/libs/authOptions";
-import prisma from "@/libs/prisma";
 
-async function SuccessPage() {
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
-  const session = await getServerSession(authOptions);
+export const dynamic = "force-dynamic";
 
-  // if (!session) {
-  //   redirect("/login");
-  // }
+interface Props {
+  searchParams: Promise<{ session_id?: string }>;
+}
 
-  const user = await prisma.user.findUnique({
-    where: {
-      id: session.user.id,
-    },
-  });
+// Stripe redirige aquí con ?session_id={CHECKOUT_SESSION_ID}. El pedido o la
+// suscripción se registran en el webhook; esta página solo informa del estado.
+export default async function SuccessPage({ searchParams }: Props) {
+  const { session_id: sessionId } = await searchParams;
+  const session = await getSession();
+  const stripe = getStripe();
 
-  // obtener id de base de datos
-  const sessionId =
-    "cs_test_a1N6R5usuuHqsYh6KaXKG93d9aS2PI042yZmZmpzuHs2qmPW1Gecue2RSx";
+  let title = "No encontramos el pago";
+  let message = "Vuelve al carrito e inténtalo de nuevo.";
+  let isSubscription = false;
+  let paid = false;
 
-  const result = await stripe.checkout.sessions.retrieve(sessionId);
-
-  if (result.status === "complete") {
-    redirect("/dashboard");
+  if (stripe && sessionId?.startsWith("cs_")) {
+    try {
+      const checkout = await stripe.checkout.sessions.retrieve(sessionId);
+      const owner = checkout.metadata?.userId ?? checkout.client_reference_id;
+      if (session && owner === String(session.user.id)) {
+        isSubscription = checkout.mode === "subscription";
+        paid = checkout.status === "complete";
+        title = paid ? "¡Pago exitoso!" : "Pago pendiente";
+        message = paid
+          ? isSubscription
+            ? "Tu suscripción está activa. Puedes gestionarla desde tu perfil."
+            : "Gracias por tu compra. Verás el pedido en tu panel en unos segundos."
+          : "Stripe aún está procesando el pago.";
+      }
+    } catch {
+      // session_id inválido: se muestra el mensaje por defecto
+    }
   }
 
   return (
-    <div className="flex flex-col items-center justify-center h-screen">
-      <h1 className="text-4xl font-bold">¡Pago exitoso!</h1>
-      <p className="text-lg">Gracias por tu compra</p>
-
-      <UpdateSession subscriptionId={user?.subscriptionId} />
+    <div className="flex h-screen flex-col items-center justify-center gap-3 px-6 text-center">
+      <h1 className="text-4xl font-bold text-gray-900">{title}</h1>
+      <p className="text-lg text-gray-600">{message}</p>
+      <Link
+        href={isSubscription ? "/dashboard/profile" : "/products"}
+        className="mt-4 text-indigo-600 hover:underline"
+      >
+        {isSubscription ? "Ir a mi perfil →" : "Seguir comprando →"}
+      </Link>
+      {paid && <UpdateSession clearCart={!isSubscription} />}
     </div>
   );
 }
-export default SuccessPage;

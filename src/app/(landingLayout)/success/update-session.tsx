@@ -1,24 +1,26 @@
 "use client";
-import { useSession } from "next-auth/react";
-import { useEffect } from "react";
 
-function UpdateSession({ subscriptionId }) {
+import { useEffect } from "react";
+import { useSession } from "next-auth/react";
+import { useCartStore } from "@/store/cartStore";
+
+interface Props {
+  clearCart?: boolean;
+}
+
+/** Tras un pago correcto vacía el carrito y refresca la sesión (p. ej. la suscripción). */
+function UpdateSession({ clearCart = false }: Props) {
   const { update } = useSession();
+  const clear = useCartStore((state) => state.clearCart);
 
   useEffect(() => {
-    async function updateSession() {
-
-      console.log(update)
-
-      const result = await update({
-        subscriptionId,
-      });
-      console.log(result);
-    }
-    updateSession();
+    if (clearCart) clear();
+    // `update()` sin datos hace que el servidor relea el usuario de la base de datos
+    void update();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al montar
   }, []);
 
-  return <div>UpdateSession</div>;
+  return null;
 }
 
 export default UpdateSession;

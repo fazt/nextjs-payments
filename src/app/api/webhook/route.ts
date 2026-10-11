@@ -1,141 +1,112 @@
 import { NextResponse } from "next/server";
-import Stripe from "stripe";
+import type Stripe from "stripe";
 import prisma from "@/libs/prisma";
+import { getStripe, toSubscriptionStatus } from "@/libs/stripe";
+import { fulfillOrder } from "@/libs/orders";
+import { decodeCartLines } from "@/libs/cart";
+import { gatewayUnavailable, jsonError } from "@/libs/config";
 
-// https://2kwmbfhd-3000.brs.devtunnels.ms/
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
-const endpointSecret = process.env.STRIPE_ENDPOINT_SECRET as string;
-
+// Webhook de Stripe. En local: stripe listen --forward-to localhost:3000/api/webhook
 export async function POST(request: Request) {
-  const body = await request.text();
-  const sig = request.headers.get("stripe-signature");
+  const stripe = getStripe();
+  const endpointSecret = process.env.STRIPE_ENDPOINT_SECRET;
+  if (!stripe || !endpointSecret) return gatewayUnavailable("stripe");
 
-  if (!sig) {
-    return NextResponse.json(
-      { "Webhook Error": "No signature" },
-      {
-        status: 400,
-      }
-    );
+  const signature = request.headers.get("stripe-signature");
+  if (!signature) return jsonError("Falta la cabecera stripe-signature", 400);
+
+  let event: Stripe.Event;
+  try {
+    // constructEvent necesita el cuerpo sin parsear
+    event = stripe.webhooks.constructEvent(await request.text(), signature, endpointSecret);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "firma inválida";
+    return jsonError(`Webhook Error: ${message}`, 400);
   }
-
-  let event;
 
   try {
-    event = stripe.webhooks.constructEvent(body, sig, endpointSecret);
+    switch (event.type) {
+      case "checkout.session.completed":
+      case "checkout.session.async_payment_succeeded":
+        await handleCheckoutCompleted(event.data.object);
+        break;
+      case "customer.subscription.updated":
+      case "customer.subscription.deleted":
+        await handleSubscriptionChange(event.data.object);
+        break;
+      default:
+        // Otros eventos se aceptan sin procesar
+        break;
+    }
   } catch (err) {
-    return NextResponse.json(
-      { "Webhook Error": err.message },
-      {
-        status: 400,
-      }
-    );
-  }
-
-  switch (event.type) {
-    case "checkout.session.completed":
-      const checkoutSessionCompleted = event.data.object;
-      if (checkoutSessionCompleted.mode === "payment") {
-        const userId = checkoutSessionCompleted.metadata!.userId as string;
-        const products = JSON.parse(
-          checkoutSessionCompleted.metadata!.products as string
-        );
-
-        const userFound = await prisma.user.findUnique({
-          where: {
-            id: parseInt(userId as string),
-          },
-          select: {
-            email: true,
-          },
-        });
-
-        if (!userFound) {
-          return NextResponse.json(
-            { "Webhook Error": "User not found" },
-            {
-              status: 400,
-            }
-          );
-        }
-
-        const productsDB = await prisma.product.findMany({
-          where: {
-            id: {
-              in: products.map((product: any) => product.id),
-            },
-          },
-        });
-
-        const total = productsDB.reduce((acc, product) => {
-          const productInCart = products.find((p: any) => p.id === product.id);
-
-          return acc + product.price * productInCart.quantity;
-        }, 0);
-
-        const newOrder = await prisma.order.create({
-          data: {
-            userId: parseInt(userId as string),
-            total,
-          },
-        });
-
-        await prisma.orderDetails.createMany({
-          data: productsDB.map((product) => ({
-            orderId: newOrder.id,
-            productId: product.id,
-            price: product.price,
-            quantity: products.find((p: any) => p.id === product.id)?.quantity,
-          })),
-        });
-
-        // reducir stock
-        for (const product of products) {
-          await prisma.product.update({
-            where: {
-              id: product.id,
-            },
-            data: {
-              stock: {
-                decrement: product.quantity,
-              },
-            },
-          });
-        }
-      }
-
-      if (checkoutSessionCompleted.mode === "subscription") {
-        await prisma.user.update({
-          where: {
-            id: parseInt(checkoutSessionCompleted.metadata!.userId as string),
-          },
-          data: {
-            subscriptionId: checkoutSessionCompleted.subscription as string,
-            subscriptionProvider: "stripe",
-          },
-        });
-      }
-
-      break;
-      // ... handle other event types
-      // case subscription canceled
-      // case "customer.subscription.deleted":
-      //   const subscriptionDeleted = event.data.object;
-
-      //   await prisma.user.update({
-      //     where: {
-      //       subscriptionId: subscriptionDeleted.id,
-      //       endDatePlan: "2024-06-06",
-      //       cancelado: true
-      //     },
-      //     data: {
-      //       subscriptionId: null,
-      //     },
-      //   });
-      break;
-    default:
-      console.log(`Unhandled event type ${event.type}`);
+    console.error(`[stripe] Error procesando ${event.type}`, err);
+    // 500 para que Stripe reintente el evento
+    return jsonError("Error procesando el evento", 500);
   }
 
   return NextResponse.json({ received: true });
+}
+
+async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
+  const userId = Number(session.metadata?.userId ?? session.client_reference_id);
+  if (!Number.isInteger(userId) || userId <= 0) return;
+
+  if (session.mode === "payment") {
+    // Con métodos asíncronos el pago puede seguir pendiente: se registrará
+    // con checkout.session.async_payment_succeeded.
+    if (session.payment_status !== "paid") return;
+
+    await fulfillOrder({
+      userId,
+      lines: decodeCartLines(session.metadata?.products),
+      provider: "stripe",
+      paymentId: session.id,
+      total: (session.amount_total ?? 0) / 100,
+    });
+    return;
+  }
+
+  if (session.mode === "subscription" && session.subscription) {
+    const subscriptionId =
+      typeof session.subscription === "string" ? session.subscription : session.subscription.id;
+    const planId = Number(session.metadata?.planId);
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        subscriptionId,
+        subscriptionProvider: "stripe",
+        status: "ACTIVE",
+        startedAt: new Date(),
+        planId: Number.isInteger(planId) && planId > 0 ? planId : null,
+      },
+    });
+
+    if (session.amount_total) {
+      await prisma.payments.upsert({
+        where: { provider_paymentId: { provider: "stripe", paymentId: session.id } },
+        update: {},
+        create: {
+          userId,
+          provider: "stripe",
+          paymentId: session.id,
+          total: session.amount_total / 100,
+        },
+      });
+    }
+  }
+}
+
+async function handleSubscriptionChange(subscription: Stripe.Subscription) {
+  const user = await prisma.user.findFirst({ where: { subscriptionId: subscription.id } });
+  if (!user) return;
+
+  const status = toSubscriptionStatus(subscription.status);
+  await prisma.user.update({
+    where: { id: user.id },
+    data:
+      status === "CANCELLED"
+        ? { status, subscriptionId: null, subscriptionProvider: null, planId: null }
+        : { status },
+  });
 }
