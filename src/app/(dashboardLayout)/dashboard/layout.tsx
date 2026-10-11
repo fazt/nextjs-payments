@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
@@ -10,13 +9,11 @@ import { XMarkIcon } from "@heroicons/react/24/outline";
 import { Bars3Icon } from "@heroicons/react/20/solid";
 import { dashboardRoutes } from "@/routes/navbarRoutes";
 import { classNames } from "@/libs/classNames";
-import { Button } from "@/components/ui";
+import { Button, Logo } from "@/components/ui";
 
 interface Props {
   children: React.ReactNode;
 }
-
-const LOGO = "https://tailwindui.com/img/logos/mark.svg?color=indigo&shade=500";
 
 function Navigation({ role, pathname }: { role: string; pathname: string }) {
   return (
@@ -86,7 +83,9 @@ export default function DashboardLayout({ children }: Props) {
             </TransitionChild>
             <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-gray-900 px-6 ring-1 ring-white/10">
               <div className="flex h-16 shrink-0 items-center">
-                <Image className="h-8 w-auto" src={LOGO} alt="Next Payments" width={32} height={32} unoptimized />
+                <Link href="/" aria-label="Next Payments">
+                <Logo withText textClassName="text-white" />
+              </Link>
               </div>
               <Navigation role={role} pathname={pathname} />
             </div>
@@ -98,7 +97,9 @@ export default function DashboardLayout({ children }: Props) {
       <div className="hidden xl:fixed xl:inset-y-0 xl:z-50 xl:flex xl:w-72 xl:flex-col">
         <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-black/10 px-6 ring-1 ring-white/5">
           <div className="flex h-16 shrink-0 items-center">
-            <Image className="h-8 w-auto" src={LOGO} alt="Next Payments" width={32} height={32} unoptimized />
+            <Link href="/" aria-label="Next Payments">
+                <Logo withText textClassName="text-white" />
+              </Link>
           </div>
           <Navigation role={role} pathname={pathname} />
           <div className="-mx-6 mt-auto px-6 py-3 text-sm font-semibold leading-6 text-white">

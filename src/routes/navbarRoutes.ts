@@ -10,23 +10,18 @@ import {
 
 export const navbarRoutes = [
   {
-    href: "/subscriptions",
-    text: "Suscribete",
-    auth: false,
-  },
-  {
     href: "/products",
-    text: "Products",
+    text: "Productos",
     auth: false,
   },
   {
-    href: "/auth/login",
-    text: "Login",
+    href: "/subscriptions",
+    text: "Suscripciones",
     auth: false,
   },
   {
     href: "/auth/register",
-    text: "Register",
+    text: "Crear cuenta",
     auth: false,
   },
 ];
@@ -58,13 +53,13 @@ export const dashboardRoutes = [
   },
   {
     href: "/dashboard/categories",
-    text: "Categorias",
+    text: "Categorías",
     roles: ["admin"],
     icon: ListBulletIcon,
   },
   {
     href: "/dashboard/categories/new",
-    text: "Crea Categoria",
+    text: "Nueva categoría",
     roles: ["admin"],
     icon: FolderIcon,
   },

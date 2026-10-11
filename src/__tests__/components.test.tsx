@@ -21,8 +21,9 @@ describe("LandingPage", () => {
   it("muestra el hero de la portada", () => {
     render(<LandingPage />);
     expect(
-      screen.getByRole("heading", { level: 1, name: /deploy to the cloud with confidence/i })
+      screen.getByRole("heading", { level: 1, name: /stripe, paypal y mercado pago/i })
     ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /ver productos/i })).toHaveAttribute("href", "/products");
   });
 });
 

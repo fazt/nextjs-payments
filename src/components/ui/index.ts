@@ -8,3 +8,4 @@ export { Avatar } from "./Avatar";
 export { Textarea } from "./Textarea";
 export { Badge } from "./Badge";
 export { QuillEditor } from "./QuillEditor";
+export { Logo } from "./Logo";

@@ -2,8 +2,8 @@ import LoginForm from "@/components/auth/LoginForm";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Login",
-  description: "Login page",
+  title: "Iniciar sesión",
+  description: "Accede a tu cuenta de Next Payments",
 };
 
 interface Props {

@@ -11,7 +11,6 @@ const nextConfig: NextConfig = {
   ],
   images: {
     remotePatterns: [
-      { protocol: "https", hostname: "tailwindui.com" },
       { protocol: "https", hostname: "images.unsplash.com" },
       { protocol: "https", hostname: "store.sony.com.co" },
       { protocol: "https", hostname: "res.cloudinary.com" },

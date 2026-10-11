@@ -5,37 +5,37 @@ import { Dialog, DialogPanel } from "@headlessui/react";
 import { Bars3Icon, XMarkIcon } from "@heroicons/react/24/outline";
 import { navbarRoutes } from "@/routes/navbarRoutes";
 import Link from "next/link";
-import Image from "next/image";
-import { Badge } from "@/components/ui";
+import { Badge, Logo } from "@/components/ui";
 import { useSession } from "next-auth/react";
 import { cartCount, useCartStore, useHydrated } from "@/store/cartStore";
 
-const footerNavigation = {
-  solutions: [
-    { name: "Hosting", href: "#" },
-    { name: "Data Services", href: "#" },
-    { name: "Uptime Monitoring", href: "#" },
-    { name: "Enterprise Services", href: "#" },
-  ],
-  support: [
-    { name: "Pricing", href: "#" },
-    { name: "Documentation", href: "#" },
-    { name: "Guides", href: "#" },
-    { name: "API Reference", href: "#" },
-  ],
-  company: [
-    { name: "About", href: "#" },
-    { name: "Blog", href: "#" },
-    { name: "Jobs", href: "#" },
-    { name: "Press", href: "#" },
-    { name: "Partners", href: "#" },
-  ],
-  legal: [
-    { name: "Claim", href: "#" },
-    { name: "Privacy", href: "#" },
-    { name: "Terms", href: "#" },
-  ],
-};
+const footerNavigation = [
+  {
+    title: "Tienda",
+    links: [
+      { name: "Productos", href: "/products" },
+      { name: "Suscripciones", href: "/subscriptions" },
+      { name: "Carrito", href: "/cart" },
+    ],
+  },
+  {
+    title: "Cuenta",
+    links: [
+      { name: "Iniciar sesión", href: "/auth/login" },
+      { name: "Crear cuenta", href: "/auth/register" },
+      { name: "Mi panel", href: "/dashboard" },
+    ],
+  },
+  {
+    title: "Proyecto",
+    links: [
+      { name: "Código en GitHub", href: "https://github.com/fazt/nextjs-payments" },
+      { name: "Documentación de Stripe", href: "https://docs.stripe.com" },
+      { name: "PayPal Developer", href: "https://developer.paypal.com" },
+      { name: "Mercado Pago Developers", href: "https://www.mercadopago.com.pe/developers" },
+    ],
+  },
+];
 
 interface Props {
   children: React.ReactNode;
@@ -49,7 +49,7 @@ export default function LandingLayout({ children }: Props) {
   const account =
     status === "authenticated"
       ? { href: "/dashboard", text: "Mi panel" }
-      : { href: "/auth/login", text: "Log in" };
+      : { href: "/auth/login", text: "Iniciar sesión" };
   const routes = navbarRoutes.filter(
     (route) => status !== "authenticated" || !route.href.startsWith("/auth")
   );
@@ -63,16 +63,8 @@ export default function LandingLayout({ children }: Props) {
           aria-label="Global"
         >
           <div className="flex lg:flex-1">
-            <Link href="/" className="-m-1.5 p-1.5">
-              <span className="sr-only">Next Payments</span>
-              <Image
-                className="h-8 w-auto"
-                src="https://tailwindui.com/img/logos/mark.svg?color=indigo&shade=600"
-                unoptimized
-                alt=""
-                width={32}
-                height={32}
-              />
+            <Link href="/" className="-m-1.5 p-1.5" aria-label="Next Payments, inicio">
+              <Logo withText />
             </Link>
           </div>
           <div className="flex lg:hidden">
@@ -81,11 +73,11 @@ export default function LandingLayout({ children }: Props) {
               className="-m-2.5 inline-flex items-center justify-center rounded-md p-2.5 text-gray-700"
               onClick={() => setMobileMenuOpen(true)}
             >
-              <span className="sr-only">Open main menu</span>
+              <span className="sr-only">Abrir menú</span>
               <Bars3Icon className="h-6 w-6" aria-hidden="true" />
             </button>
           </div>
-          <div className="hidden lg:flex lg:gap-x-12">
+          <div className="hidden lg:flex lg:items-center lg:gap-x-12">
             {routes.map((item) => (
               <Link
                 key={item.text}
@@ -96,10 +88,8 @@ export default function LandingLayout({ children }: Props) {
               </Link>
             ))}
 
-            <Link href="/cart">
-              <h3>
-                Carrito <Badge>{hydrated ? cartCount(cart) : 0}</Badge>
-              </h3>
+            <Link href="/cart" className="text-sm font-semibold leading-6 text-gray-900">
+              Carrito <Badge>{hydrated ? cartCount(cart) : 0}</Badge>
             </Link>
           </div>
           <div className="hidden lg:flex lg:flex-1 lg:justify-end">
@@ -120,24 +110,15 @@ export default function LandingLayout({ children }: Props) {
           <div className="fixed inset-0 z-50" />
           <DialogPanel className="fixed inset-y-0 right-0 z-50 w-full overflow-y-auto bg-white px-6 py-6 sm:max-w-sm sm:ring-1 sm:ring-gray-900/10">
             <div className="flex items-center justify-between">
-              <Link href="/" className="-m-1.5 p-1.5">
-                <span className="sr-only">Next Payments</span>
-                <Image
-                  className="h-8 w-auto"
-                  src="https://tailwindui.com/img/logos/mark.svg?color=indigo&shade=600"
-                  unoptimized
-                  alt=""
-                  width={32}
-                  height={32}
-                  priority
-                />
+              <Link href="/" className="-m-1.5 p-1.5" aria-label="Next Payments, inicio">
+                <Logo withText />
               </Link>
               <button
                 type="button"
                 className="-m-2.5 rounded-md p-2.5 text-gray-700"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                <span className="sr-only">Close menu</span>
+                <span className="sr-only">Cerrar menú</span>
                 <XMarkIcon className="h-6 w-6" aria-hidden="true" />
               </button>
             </div>
@@ -148,6 +129,7 @@ export default function LandingLayout({ children }: Props) {
                     <Link
                       key={item.text}
                       href={item.href}
+                      onClick={() => setMobileMenuOpen(false)}
                       className="-mx-3 block rounded-lg px-3 py-2 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50"
                     >
                       {item.text}
@@ -157,12 +139,14 @@ export default function LandingLayout({ children }: Props) {
                 <div className="py-6">
                   <Link
                     href="/cart"
+                    onClick={() => setMobileMenuOpen(false)}
                     className="-mx-3 block rounded-lg px-3 py-2.5 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50"
                   >
                     Carrito ({hydrated ? cartCount(cart) : 0})
                   </Link>
                   <Link
                     href={account.href}
+                    onClick={() => setMobileMenuOpen(false)}
                     className="-mx-3 block rounded-lg px-3 py-2.5 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50"
                   >
                     {account.text}
@@ -180,32 +164,31 @@ export default function LandingLayout({ children }: Props) {
       <div className="mx-auto mt-32 max-w-7xl px-6 lg:px-8">
         <footer
           aria-labelledby="footer-heading"
-          className="relative border-t border-gray-900/10 py-24 sm:mt-56 sm:py-32"
+          className="relative border-t border-gray-900/10 py-16 sm:mt-40 sm:py-24"
         >
           <h2 id="footer-heading" className="sr-only">
-            Footer
+            Pie de página
           </h2>
           <div className="xl:grid xl:grid-cols-3 xl:gap-8">
-            <Image
-              className="h-7"
-              src="https://tailwindui.com/img/logos/mark.svg?color=indigo&shade=600"
-              unoptimized
-              alt="Company name"
-              width={32}
-              height={32}
-            />
-            <div className="mt-16 grid grid-cols-2 gap-8 xl:col-span-2 xl:mt-0">
-              <div className="md:grid md:grid-cols-2 md:gap-8">
-                <div>
+            <div className="space-y-4">
+              <Logo withText />
+              <p className="max-w-xs text-sm leading-6 text-gray-600">
+                Proyecto de ejemplo para aprender a integrar pagos en Next.js. Usa siempre credenciales de prueba.
+              </p>
+            </div>
+            <div className="mt-16 grid grid-cols-2 gap-8 sm:grid-cols-3 xl:col-span-2 xl:mt-0">
+              {footerNavigation.map((section) => (
+                <div key={section.title}>
                   <h3 className="text-sm font-semibold leading-6 text-gray-900">
-                    Solutions
+                    {section.title}
                   </h3>
                   <ul role="list" className="mt-6 space-y-4">
-                    {footerNavigation.solutions.map((item) => (
+                    {section.links.map((item) => (
                       <li key={item.name}>
                         <a
                           href={item.href}
                           className="text-sm leading-6 text-gray-600 hover:text-gray-900"
+                          {...(item.href.startsWith("http") ? { target: "_blank", rel: "noreferrer" } : {})}
                         >
                           {item.name}
                         </a>
@@ -213,60 +196,7 @@ export default function LandingLayout({ children }: Props) {
                     ))}
                   </ul>
                 </div>
-                <div className="mt-10 md:mt-0">
-                  <h3 className="text-sm font-semibold leading-6 text-gray-900">
-                    Support
-                  </h3>
-                  <ul role="list" className="mt-6 space-y-4">
-                    {footerNavigation.support.map((item) => (
-                      <li key={item.name}>
-                        <a
-                          href={item.href}
-                          className="text-sm leading-6 text-gray-600 hover:text-gray-900"
-                        >
-                          {item.name}
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-              <div className="md:grid md:grid-cols-2 md:gap-8">
-                <div>
-                  <h3 className="text-sm font-semibold leading-6 text-gray-900">
-                    Company
-                  </h3>
-                  <ul role="list" className="mt-6 space-y-4">
-                    {footerNavigation.company.map((item) => (
-                      <li key={item.name}>
-                        <a
-                          href={item.href}
-                          className="text-sm leading-6 text-gray-600 hover:text-gray-900"
-                        >
-                          {item.name}
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div className="mt-10 md:mt-0">
-                  <h3 className="text-sm font-semibold leading-6 text-gray-900">
-                    Legal
-                  </h3>
-                  <ul role="list" className="mt-6 space-y-4">
-                    {footerNavigation.legal.map((item) => (
-                      <li key={item.name}>
-                        <a
-                          href={item.href}
-                          className="text-sm leading-6 text-gray-600 hover:text-gray-900"
-                        >
-                          {item.name}
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
+              ))}
             </div>
           </div>
         </footer>

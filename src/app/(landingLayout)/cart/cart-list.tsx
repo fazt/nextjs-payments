@@ -107,7 +107,7 @@ export function CartList({ gateways, paypal, mercadoPagoPublicKey }: Props) {
 
       <Card>
         <div className="flex items-center justify-between">
-          <span className="text-gray-700">{cartCount(cart)} productos</span>
+          <span className="text-gray-700">{cartCount(cart)} {cartCount(cart) === 1 ? "producto" : "productos"}</span>
           <span className="text-xl font-bold text-gray-900">Total: {money.format(total)}</span>
         </div>
         <p className="mt-1 text-xs text-gray-500">
