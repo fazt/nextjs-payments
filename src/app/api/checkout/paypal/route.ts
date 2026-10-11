@@ -1,57 +1,53 @@
 import { NextResponse } from "next/server";
-import paypal from "@paypal/checkout-server-sdk";
-import prisma from "@/libs/prisma";
+import { CheckoutPaymentIntent } from "@paypal/paypal-server-sdk";
+import { describePaypalError, getPaypal } from "@/libs/paypal";
+import { requireUser } from "@/libs/session";
+import { loadPricedCart, readJson } from "@/libs/checkout";
+import { cartTotal, CheckoutError, formatAmount } from "@/libs/cart";
+import { gatewayUnavailable, jsonError } from "@/libs/config";
 
-const clientId = process.env.PAYPAL_CLIENT_ID as string;
-const secret = process.env.PAYPAL_CLIENT_SECRET as string;
+const CURRENCY = "USD";
 
-// cual es la aplicacio
-const environment = new paypal.core.SandboxEnvironment(clientId, secret);
-const client = new paypal.core.PayPalHttpClient(environment);
+// Crea una orden de PayPal (intent CAPTURE) con los precios de la base de datos.
+// El botón de PayPal la aprueba y después /api/checkout/paypal/capture la cobra.
+export async function POST(request: Request) {
+  const paypal = getPaypal();
+  if (!paypal) return gatewayUnavailable("paypal");
 
-export async function POST(req: Request) {
-  const request = new paypal.orders.OrdersCreateRequest();
-  const cart = await req.json();
+  const { session, error } = await requireUser();
+  if (error) return error;
 
-  const productsIds = cart.map((product: any) => product.id);
+  try {
+    const lines = await loadPricedCart(await readJson(request));
+    const total = formatAmount(cartTotal(lines));
 
-  const products = await prisma.product.findMany({
-    where: {
-      id: {
-        in: productsIds,
+    const { result } = await paypal.orders.createOrder({
+      body: {
+        intent: CheckoutPaymentIntent.Capture,
+        purchaseUnits: [
+          {
+            customId: String(session.user.id),
+            amount: {
+              currencyCode: CURRENCY,
+              value: total,
+              breakdown: { itemTotal: { currencyCode: CURRENCY, value: total } },
+            },
+            items: lines.map((line) => ({
+              name: line.name.slice(0, 127),
+              sku: String(line.productId),
+              quantity: String(line.quantity),
+              unitAmount: { currencyCode: CURRENCY, value: formatAmount(line.unitPrice) },
+            })),
+          },
+        ],
       },
-    },
-  });
+      prefer: "return=representation",
+    });
 
-  const productsWithQuantity = products.map((product) => {
-    const productInCart = cart.find((p: any) => p.id === product.id);
-
-    return {
-      ...product,
-      quantity: productInCart.quantity,
-    };
-  });
-
-  const total = productsWithQuantity.reduce((acc, product) => {
-    return acc + product.price * product.quantity;
-  }, 0);
-
-  request.requestBody({
-    intent: "CAPTURE",
-    purchase_units: [
-      {
-        amount: {
-          currency_code: "USD",
-          value: total.toString(),
-        },
-      },
-    ],
-  });
-
-  const response = await client.execute(request);
-
-  return NextResponse.json({
-    id: response.result.id,
-    status: response.result.status,
-  });
+    return NextResponse.json({ id: result.id, status: result.status });
+  } catch (err) {
+    if (err instanceof CheckoutError) return jsonError(err.message, err.status);
+    console.error("[paypal] Error al crear la orden:", describePaypalError(err));
+    return jsonError("No se pudo crear la orden de PayPal", 502);
+  }
 }
