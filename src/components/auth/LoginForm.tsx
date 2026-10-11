@@ -8,7 +8,12 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-function LoginForm() {
+interface Props {
+  /** Ruta interna a la que volver tras iniciar sesión */
+  callbackUrl?: string;
+}
+
+function LoginForm({ callbackUrl = "/dashboard" }: Props) {
   const {
     register,
     handleSubmit,
@@ -32,7 +37,7 @@ function LoginForm() {
       return;
     }
 
-    router.push("/dashboard");
+    router.push(callbackUrl);
     router.refresh();
   });
 

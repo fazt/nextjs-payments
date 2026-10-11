@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
+import { useState } from "react";
 
 function RegisterForm() {
   const {
@@ -17,6 +18,7 @@ function RegisterForm() {
     resolver: zodResolver(registerSchema),
   });
   const router = useRouter();
+  const [error, setError] = useState("");
 
   const onSubmit = handleSubmit(async (data) => {
     const response = await fetch("/api/auth/signup", {
@@ -28,6 +30,8 @@ function RegisterForm() {
     });
 
     if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      setError(body.error ?? "No se pudo crear la cuenta");
       return;
     }
 
@@ -38,6 +42,7 @@ function RegisterForm() {
     });
 
     if (resSignin?.error) {
+      setError(resSignin.error);
       return;
     }
 
@@ -47,6 +52,15 @@ function RegisterForm() {
 
   return (
     <Card>
+      {error && (
+        <div
+          className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4"
+          role="alert"
+        >
+          <p>{error}</p>
+        </div>
+      )}
+
       <form onSubmit={onSubmit} className="flex flex-col gap-y-2">
         <h3 className="text-2xl font-bold text-center mb-4">Register</h3>
 

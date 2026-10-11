@@ -1,21 +1,32 @@
-// eslint-disable-next-line no-unused-vars
-import NextAuth from "next-auth";
+import type { DefaultSession } from "next-auth";
 
 declare module "next-auth" {
-  /**
-   * Returned by `useSession`, `getSession` and received as a prop on the `SessionProvider` React Context
-   */
-  // eslint-disable-next-line no-unused-vars
+  /** Sesión que devuelven `useSession`, `getSession` y `getServerSession`. */
   interface Session {
     user: {
+      id: number;
       name: string;
       email: string;
-      image: string;
-      id: number;
       lastname: string;
       role: string;
-      confirmed_email: boolean;
-      subscriptionId: string;
-    };
+      subscriptionId: string | null;
+    } & Omit<DefaultSession["user"], "name" | "email">;
+  }
+
+  /** Usuario que devuelve `authorize` del proveedor de credenciales. */
+  interface User {
+    id: string;
+    lastname: string;
+    role: string;
+    subscriptionId: string | null;
+  }
+}
+
+declare module "next-auth/jwt" {
+  interface JWT {
+    id: number;
+    lastname: string;
+    role: string;
+    subscriptionId: string | null;
   }
 }
