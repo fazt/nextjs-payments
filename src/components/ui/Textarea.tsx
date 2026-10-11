@@ -12,4 +12,4 @@ export const Textarea = forwardRef<
   );
 });
 
-Textarea.displayName = "Input";
+Textarea.displayName = "Textarea";

@@ -3,7 +3,7 @@ export { Card } from "./Card";
 export { Label } from "./Label";
 export { Modal } from "./Modal";
 export { Input } from "./Input";
-export { Table } from "./Table";
+export { Table, type TableColumn } from "./Table";
 export { Avatar } from "./Avatar";
 export { Textarea } from "./Textarea";
 export { Badge } from "./Badge";

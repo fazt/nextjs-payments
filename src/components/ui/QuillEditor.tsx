@@ -1,31 +1,28 @@
-"use client"
+"use client";
 
-import React, { forwardRef, useEffect, useState } from 'react';
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css'; // Importa el CSS de Quill
-import { Input } from './Input';
+import dynamic from "next/dynamic";
+import "react-quill-new/dist/quill.snow.css";
 
-export const QuillEditor = forwardRef<ReactQuill>((props, ref) => {
-    const [isClient, setIsClient] = useState(false);
-
-    useEffect(() => {
-        // Esto actualiza el estado de isClient a true en el cliente después del primer renderizado
-        setIsClient(typeof window !== 'undefined');
-    }, []);
-
-    if (!isClient) {
-        return <Input />; // O cualquier otro placeholder mientras se carga en el cliente
-    }
-
-    const ReactQuill = require('react-quill'); // ReactQuill se requiere solo en el cliente
-
-    return (
-        <ReactQuill
-            ref={ref}
-            {...props}
-            theme="snow"
-        />
-    );
+// react-quill dejó de funcionar con React 19 (usaba findDOMNode); react-quill-new
+// es el fork mantenido. Se carga solo en el navegador porque Quill necesita `document`.
+const ReactQuill = dynamic(() => import("react-quill-new"), {
+  ssr: false,
+  loading: () => <div className="h-32 rounded-sm bg-slate-200" />,
 });
 
-QuillEditor.displayName = 'QuillEditor';
+interface Props {
+  value?: string;
+  onChange?: (value: string) => void;
+  onBlur?: () => void;
+}
+
+export function QuillEditor({ value, onChange, onBlur }: Props) {
+  return (
+    <ReactQuill
+      theme="snow"
+      value={value ?? ""}
+      onChange={(html) => onChange?.(html)}
+      onBlur={() => onBlur?.()}
+    />
+  );
+}
