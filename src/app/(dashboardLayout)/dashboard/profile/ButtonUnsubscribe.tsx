@@ -1,30 +1,38 @@
 "use client";
+
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui";
 import { useSession } from "next-auth/react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui";
 
 export function ButtonUnsubscribe() {
   const router = useRouter();
   const { update } = useSession();
+  const [loading, setLoading] = useState(false);
 
   return (
     <Button
+      className="bg-red-500 hover:bg-red-600"
+      disabled={loading}
       onClick={async () => {
-        const result = await fetch("/api/checkout/subscription/cancel", {
-          method: "POST",
-        });
-        console.log(result);
-        // const data = await result.json();
+        if (!confirm("¿Seguro que quieres cancelar tu suscripción?")) return;
+        setLoading(true);
+        const res = await fetch("/api/checkout/subscription/cancel", { method: "POST" });
+        const body = await res.json().catch(() => ({}));
+        setLoading(false);
 
-        const resultUpdate = await update({
-          subscriptionId: null,
-        });
-        console.log(resultUpdate);
+        if (!res.ok) {
+          toast.error(body.error ?? "No se pudo cancelar la suscripción");
+          return;
+        }
 
+        await update(); // relee la suscripción desde la base de datos
+        toast.success("Suscripción cancelada");
         router.refresh();
       }}
     >
-      Cancel Subscription
+      {loading ? "Cancelando…" : "Cancelar suscripción"}
     </Button>
   );
 }

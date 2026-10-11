@@ -1,113 +1,157 @@
 "use client";
-import { Card, Button } from "@/components/ui";
-import { useCartStore } from "@/store/cartStore";
-import { useSession } from "next-auth/react";
+
+import { useState } from "react";
+import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { toast } from "sonner";
+import { Button, Card } from "@/components/ui";
+import { cartCount, useCartStore, useHydrated } from "@/store/cartStore";
+import type { GatewayStatus } from "@/libs/config";
 import { PaypalButton } from "./paypal-button";
-import { initMercadoPago, Wallet } from "@mercadopago/sdk-react";
-import { useEffect, useState } from "react";
+import { MercadoPagoButton } from "./mercadopago-button";
 
-initMercadoPago("TEST-4dd4f7db-2104-497f-b849-9953b57cb77e");
+interface Props {
+  gateways: GatewayStatus;
+  paypal: { clientId: string; environment: "sandbox" | "production" } | null;
+  mercadoPagoPublicKey: string | null;
+}
 
-export function CartList() {
-  const cart = useCartStore((state) => state.cart);
-  const removeFromCart = useCartStore((state) => state.removeFromCart);
+const money = new Intl.NumberFormat("es-PE", { style: "currency", currency: "USD" });
+
+export function CartList({ gateways, paypal, mercadoPagoPublicKey }: Props) {
+  const hydrated = useHydrated();
+  const { cart, removeFromCart, increase, decrease, clearCart } = useCartStore();
+  const { status } = useSession();
   const router = useRouter();
-  const [preferenceId, setPreferenceId] = useState("");
+  const [loadingStripe, setLoadingStripe] = useState(false);
 
-  const { data: session } = useSession();
+  if (!hydrated) {
+    return <p className="text-gray-500">Cargando carrito…</p>;
+  }
 
-  useEffect(() => {
-    async function load() {
-      if (cart.length === 0) return;
+  if (cart.length === 0) {
+    return (
+      <Card>
+        <p className="text-gray-700">Tu carrito está vacío.</p>
+        <Link href="/products" className="mt-4 inline-block text-indigo-600 hover:underline">
+          Ver productos →
+        </Link>
+      </Card>
+    );
+  }
 
-      const res = await fetch("/api/payments/mercadopago/checkout", {
+  const total = cart.reduce((acc, item) => acc + Math.round(item.price * 100) * item.quantity, 0) / 100;
+  // El servidor recalcula precios y stock: solo se envían ids y cantidades.
+  const checkoutItems = cart.map(({ id, quantity }) => ({ id, quantity }));
+
+  async function payWithStripe() {
+    setLoadingStripe(true);
+    try {
+      const res = await fetch("/api/checkout", {
         method: "POST",
-        body: JSON.stringify(cart),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(checkoutItems),
       });
       const data = await res.json();
-
-      console.log(data);
-      setPreferenceId(data.id);
+      if (!res.ok) throw new Error(data.error ?? "No se pudo iniciar el pago");
+      window.location.href = data.url;
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Error al pagar con Stripe");
+      setLoadingStripe(false);
     }
-    load();
-  }, [cart]);
+  }
 
   return (
-    <div>
-      {cart.map((product) => (
-        <Card key={product.id}>
-          <div className="flex justify-between">
-            <div>
-              <img
-                src={product.image}
-                alt=""
-                className="w-32 h-32 object-cover object-center"
-              />
-              <h2>{product.name}</h2>
-              <p>{product.description}</p>
-              <p>{product.price}</p>
-            </div>
-            <div className="flex flex-col items-center">
-              <div className="flex mb-5">
-                <Button>-</Button>
-                <span>{product.quantity}</span>
-                <Button>+</Button>
+    <div className="space-y-4">
+      {cart.map((item) => (
+        <Card key={item.id}>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-4">
+              {item.image ? (
+                <Image
+                  src={item.image}
+                  alt={item.name}
+                  width={96}
+                  height={96}
+                  className="h-24 w-24 rounded-md object-cover"
+                />
+              ) : (
+                <div className="h-24 w-24 rounded-md bg-gray-200" />
+              )}
+              <div>
+                <h2 className="font-semibold text-gray-900">{item.name}</h2>
+                <p className="text-sm text-gray-600">{money.format(item.price)}</p>
               </div>
-              <Button onClick={() => removeFromCart(product)}>
-                Remove from cart
+            </div>
+            <div className="flex items-center gap-3">
+              <Button
+                aria-label={`Quitar una unidad de ${item.name}`}
+                onClick={() => decrease(item.id)}
+                disabled={item.quantity <= 1}
+              >
+                −
+              </Button>
+              <span className="w-6 text-center text-gray-900">{item.quantity}</span>
+              <Button aria-label={`Añadir una unidad de ${item.name}`} onClick={() => increase(item.id)}>
+                +
+              </Button>
+              <Button className="bg-red-500 hover:bg-red-600" onClick={() => removeFromCart(item)}>
+                Quitar
               </Button>
             </div>
           </div>
         </Card>
       ))}
 
-      <div className="flex justify-end">
-        <Button
-          onClick={async () => {
-            if (!session) {
-              return router.push("/auth/login");
-            }
+      <Card>
+        <div className="flex items-center justify-between">
+          <span className="text-gray-700">{cartCount(cart)} productos</span>
+          <span className="text-xl font-bold text-gray-900">Total: {money.format(total)}</span>
+        </div>
+        <p className="mt-1 text-xs text-gray-500">
+          Stripe y PayPal cobran en USD; Mercado Pago en la moneda configurada en el servidor.
+        </p>
 
-            const result = await fetch("/api/checkout", {
-              method: "POST",
-              body: JSON.stringify(cart),
-            });
-            const data = await result.json();
+        {status === "loading" ? (
+          <p className="mt-6 text-sm text-gray-500">Cargando sesión…</p>
+        ) : status !== "authenticated" ? (
+          <div className="mt-6">
+            <Button href="/auth/login?callbackUrl=/cart">Inicia sesión para pagar</Button>
+          </div>
+        ) : (
+          <div className="mt-6 grid gap-3 sm:grid-cols-3">
+            <Button onClick={payWithStripe} disabled={!gateways.stripe || loadingStripe}>
+              {gateways.stripe
+                ? loadingStripe
+                  ? "Redirigiendo…"
+                  : "Pagar con Stripe"
+                : "Stripe (no disponible)"}
+            </Button>
 
-            if (result.ok) {
-              window.location.href = data.url;
-            }
-          }}
-        >
-          Pagar {cart.reduce((acc, p) => acc + p.price * p.quantity, 0)}
-        </Button>
-        <PaypalButton />
-        <Button
-          className="bg-blue-500 hover:bg-blue-700"
-          onClick={async () => {
-            const res = await fetch("/api/payments/mercadopago/checkout", {
-              method: "POST",
-              body: JSON.stringify(cart),
-            });
-            const data = await res.json();
-            console.log(data);
+            {paypal ? (
+              <PaypalButton
+                clientId={paypal.clientId}
+                environment={paypal.environment}
+                items={checkoutItems}
+                onPaid={() => {
+                  clearCart();
+                  router.push("/paypal/success");
+                }}
+              />
+            ) : (
+              <Button disabled>PayPal (no disponible)</Button>
+            )}
 
-            window.location.href = data.init_point;
-          }}
-        >
-          Pagar con MercadoPago
-        </Button>
-
-        {/* <div id="wallet_container"></div> */}
-
-        {preferenceId && (
-          <Wallet
-            initialization={{ preferenceId: preferenceId }}
-            customization={{ texts: { valueProp: "smart_option" } }}
-          />
+            <MercadoPagoButton
+              enabled={gateways.mercadopago}
+              publicKey={mercadoPagoPublicKey}
+              items={checkoutItems}
+            />
+          </div>
         )}
-      </div>
+      </Card>
     </div>
   );
 }
