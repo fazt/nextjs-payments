@@ -1,16 +1,20 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "@/generated/prisma/client";
 
-const prismaClientSingleton = () => {
-  return new PrismaClient()
+// Prisma 7 se conecta a PostgreSQL a través del driver adapter de `pg`.
+function createPrismaClient() {
+  const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+  return new PrismaClient({ adapter });
 }
 
-declare global {
-  // eslint-disable-next-line no-unused-vars
-  var prismaGlobal: undefined | ReturnType<typeof prismaClientSingleton>
-}
+const globalForPrisma = globalThis as unknown as {
+  prisma?: ReturnType<typeof createPrismaClient>;
+};
 
-const prisma = globalThis.prismaGlobal ?? prismaClientSingleton()
+// En desarrollo se reutiliza la instancia entre recargas en caliente para no
+// abrir una conexión nueva en cada cambio.
+const prisma = globalForPrisma.prisma ?? createPrismaClient();
 
-export default prisma
+if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
 
-if (process.env.NODE_ENV !== 'production') globalThis.prismaGlobal = prisma
+export default prisma;

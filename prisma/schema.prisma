@@ -1,59 +1,47 @@
+// Prisma ORM 7: la URL de conexión vive en prisma.config.ts y el cliente se
+// genera en src/generated/prisma (importar desde "@/generated/prisma/client").
 generator client {
-  provider = "prisma-client-js"
-}
-
-generator dbml {
-  provider = "prisma-dbml-generator"
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 model User {
-  id                   Int        @id @default(autoincrement())
-  name                 String
-  last_name            String
-  email                String     @unique
-  password             String
-  confirmed_email      Boolean?   @default(false)
-  role                 String?    @default("user") // admin
-  created_at           DateTime   @default(now())
-  products             Product[]
-  orders               Order[]
-  Payments             Payments[]
+  id              Int        @id @default(autoincrement())
+  name            String
+  last_name       String
+  email           String     @unique
+  password        String
+  confirmed_email Boolean?   @default(false)
+  role            String?    @default("user") // user | admin
+  created_at      DateTime   @default(now())
+  products        Product[]
+  orders          Order[]
+  Payments        Payments[]
 
-  
-  subscriptionProvider String? // stripe, paypal, mercadopago
-  subscriptionId String? // id de la suscripcion en stripe, paypal, mercadopago //1
-  status         String? // ACTIVE, CANCELLED, PENDING 
-  startedAt      DateTime? // fecha de inicio de la suscripcion
-
-  userSubscriptionId Int?
-  // userSubscription   UsersSubscriptions @relation(fields: [userSubscriptionId], references: [id])
+  // Suscripción del usuario (una a la vez)
+  subscriptionProvider String? // stripe | paypal
+  subscriptionId       String? // id de la suscripción en la pasarela
+  status               String? // ACTIVE, CANCELLED, SUSPENDED, ...
+  startedAt            DateTime? // fecha de inicio de la suscripción
+  planId               Int?
+  plan                 SubscriptionPlan? @relation(fields: [planId], references: [id], onDelete: SetNull)
 }
 
-// model UsersSubscriptions {
-//   id             Int      @id @default(autoincrement())
-//   subscriptionId String // id de la suscripcion en stripe, paypal, mercadopago
-//   created_at     DateTime @default(now())
-//   status         String // ACTIVE, CANCELLED, PENDING
+model SubscriptionPlan {
+  id            Int      @id @default(autoincrement())
+  name          String // Básico, Pro, Premium
+  description   String
+  price         Float // precio mensual en USD
+  features      String[] @default([])
+  stripePriceId String? // opcional: si no existe se usa price_data en Checkout
+  paypalPlanId  String? // id del plan de facturación de PayPal (P-...)
+  created_at    DateTime @default(now())
 
-//   payerId Int
-//   // payer   User @relation(fields: [payerId], references: [id])
-// }
-
-// model UsersPlans 
-
-model SubscriptionPlan { // 1 - I-123123123123
-  id          Int      @id @default(autoincrement())
-  name        String // basico, premium, gold
-  description String
-  price       Float // 
-  created_at  DateTime @default(now())
-
-  // users User[]
+  users User[]
 }
 
 model Category {
@@ -88,10 +76,10 @@ model ProductCategory {
   id Int @id @default(autoincrement())
 
   productId Int
-  product   Product @relation(fields: [productId], references: [id])
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   categoryId Int
-  category   Category @relation(fields: [categoryId], references: [id])
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 }
 
 model Payments {
@@ -100,12 +88,15 @@ model Payments {
   user   User  @relation(fields: [userId], references: [id]) // usuario del sistema
   userId Int
 
-  order   Order? @relation(fields: [orderId], references: [id])
-  orderId Int? // id de la orden de stripe y paypal
-  paymentId Int? // id de pago de mercadopago
-  provider String // stripe, paypal, mercadopago
+  order     Order?  @relation(fields: [orderId], references: [id])
+  orderId   Int?
+  paymentId String? // id del pago en la pasarela (sesión de Stripe, captura de PayPal, pago de Mercado Pago)
+  provider  String // stripe | paypal | mercadopago
 
   created_at DateTime @default(now())
+
+  // Evita registrar dos veces el mismo pago cuando un webhook se reintenta
+  @@unique([provider, paymentId])
 }
 
 model Order {
