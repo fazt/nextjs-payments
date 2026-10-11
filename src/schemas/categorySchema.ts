@@ -3,16 +3,14 @@ import { z } from "zod";
 export const createCategorySchema = z.object({
   name: z
     .string()
-    .min(3, {
-      message: "El nombre debe tener al menos 3 caracteres",
-    })
+    .trim()
+    .min(3, { error: "El nombre debe tener al menos 3 caracteres" })
     .max(255),
   description: z
-    .string({
-      invalid_type_error: "La descripción debe ser un texto",
-    })
+    .string({ error: "La descripción debe ser un texto" })
+    .trim()
+    .max(1000)
     .optional(),
-  published: z.boolean({
-    invalid_type_error: "El campo publicado debe ser un booleano",
-  }),
 });
+
+export type CreateCategoryInput = z.infer<typeof createCategorySchema>;

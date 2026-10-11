@@ -1,47 +1,36 @@
 "use client";
-import { User } from "@prisma/client";
-import { Table } from "../ui/Table";
-import { Button } from "../ui";
+
+import { Badge, Table, type TableColumn } from "../ui";
+
+export interface UserRow {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+  subscription: string;
+  orders: number;
+  created_at: string;
+}
 
 interface Props {
-  users: User[];
+  users: UserRow[];
 }
+
+const columns: TableColumn<UserRow>[] = [
+  { header: "Nombre", accessorKey: "name" },
+  { header: "Correo", accessorKey: "email" },
+  {
+    header: "Rol",
+    accessorKey: "role",
+    cell: (info) => <Badge>{info.row.original.role}</Badge>,
+  },
+  { header: "Suscripción", accessorKey: "subscription" },
+  { header: "Pedidos", accessorKey: "orders" },
+  { header: "Registro", accessorKey: "created_at" },
+];
 
 function UserTable({ users }: Props) {
-  const columns = [
-    {
-      header: "Nombre",
-      accessorKey: "name",
-    },
-    {
-      header: "Apellido",
-      accessorKey: "last_name",
-    },
-    {
-      header: "Correo",
-      accessorKey: "email",
-    },
-    {
-      header: "Correo confirmado",
-      accessorKey: "confirmed_email",
-    },
-    {
-      header: "Rol",
-      accessorKey: "role",
-    },
-    {
-      header: "Acciones",
-      cell: () => {
-        return (
-          <div className="flex gap-x-2">
-            <Button>Editar</Button>
-            <Button className="bg-red-500 hover:bg-red-700">Eliminar</Button>
-          </div>
-        );
-      },
-    },
-  ];
-
-  return <Table data={users} columns={columns} />;
+  return <Table data={users} columns={columns} emptyMessage="No hay usuarios" />;
 }
+
 export default UserTable;

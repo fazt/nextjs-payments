@@ -1,116 +1,173 @@
 "use client";
 
-import { Input, Label, Button, Card, QuillEditor } from "@/components/ui";
-import { Controller, useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  CreateProductInput,
-  createProductSchema,
-} from "@/schemas/productSchema";
-import { toast } from "sonner";
-import { useRouter } from "next/navigation";
-import Select from "react-select";
-import { Category } from "@prisma/client";
+import { useMemo } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { Controller, useForm, useWatch } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import Select from "react-select";
+import { toast } from "sonner";
+import type { Category } from "@/generated/prisma/browser";
+import { Input, Label, Button, Card, QuillEditor } from "@/components/ui";
+import { productFormSchema } from "@/schemas/productSchema";
+
+export interface ProductFormValues {
+  id: number;
+  name: string;
+  description: string | null;
+  price: number;
+  stock: number | null;
+  image: string | null;
+  slug: string | null;
+  categories: number[];
+}
 
 interface Props {
-  categories: Category[];
+  categories: Pick<Category, "id" | "name">[];
+  /** Si se pasa, el formulario edita ese producto en lugar de crear uno nuevo */
+  product?: ProductFormValues;
 }
 
-function ProductForm({ categories }: Props) {
-  const { control, register, handleSubmit, watch, setValue } =
-    useForm<CreateProductInput>({
-      resolver: zodResolver(createProductSchema),
-    });
+function ErrorText({ message }: { message?: string }) {
+  return message ? <p className="text-xs text-red-500">{message}</p> : null;
+}
+
+function ProductForm({ categories, product }: Props) {
   const router = useRouter();
-
-  const onSubmit = handleSubmit(async (data) => {
-    if (data.image instanceof FileList && data.image.length) {
-      const formData = new FormData();
-      formData.append("file", data.image[0]);
-
-      const result = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      const uploadData = await result.json();
-      data.image = uploadData.secure_url;
-    } else {
-      delete data.image;
-    }
-
-
-    await fetch("/api/products", {
-      method: "POST",
-      body: JSON.stringify(data),
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
-
-    router.push("/dashboard/products");
-    router.refresh();
-
-    toast.success("Producto creado");
+  const {
+    control,
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    resolver: zodResolver(productFormSchema),
+    defaultValues: {
+      name: product?.name ?? "",
+      description: product?.description ?? "",
+      price: product ? String(product.price) : "",
+      stock: product ? String(product.stock ?? 0) : "0",
+      slug: product?.slug ?? "",
+      categories: product?.categories ?? [],
+    },
   });
 
-  console.log(categories);
+  const imageFiles = useWatch({ control, name: "image" });
+  const previewUrl = useMemo(
+    () => (imageFiles && imageFiles.length > 0 ? URL.createObjectURL(imageFiles[0]) : null),
+    [imageFiles]
+  );
+
+  const options = categories.map((category) => ({ value: category.id, label: category.name }));
+
+  const onSubmit = handleSubmit(async ({ image, ...data }) => {
+    let imageUrl: string | undefined;
+
+    if (image && image.length > 0) {
+      const formData = new FormData();
+      formData.append("file", image[0]);
+      const upload = await fetch("/api/upload", { method: "POST", body: formData });
+      const uploadData = await upload.json();
+      if (!upload.ok) {
+        toast.error(uploadData.error ?? "No se pudo subir la imagen");
+        return;
+      }
+      imageUrl = uploadData.secure_url;
+    }
+
+    const res = await fetch(product ? `/api/products/${product.id}` : "/api/products", {
+      method: product ? "PUT" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...data, image: imageUrl }),
+    });
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      toast.error(body.error ?? "No se pudo guardar el producto");
+      return;
+    }
+
+    toast.success(product ? "Producto actualizado" : "Producto creado");
+    router.push("/dashboard/products");
+    router.refresh();
+  });
 
   return (
-    <Card>
-      <form onSubmit={onSubmit}>
-        <Label>Nombre del Producto</Label>
-        <Input {...register("name")} />
+    <div className="mx-auto max-w-2xl px-4">
+      <Card>
+        <h1 className="mb-4 text-xl font-bold text-gray-900">
+          {product ? "Editar producto" : "Nuevo producto"}
+        </h1>
+        <form onSubmit={onSubmit} className="flex flex-col gap-y-2">
+          <Label>Nombre del Producto</Label>
+          <Input {...register("name")} />
+          <ErrorText message={errors.name?.message} />
 
-        <Label>Descripción</Label>
-        <Controller
-          name="description"
-          control={control}
-          render={({ field }) => <QuillEditor {...field} />}
-        />
-
-        <Label>Precio</Label>
-        <Input {...register("price")} type="number" defaultValue={0} />
-
-        <Label>Stock</Label>
-        <Input {...register("stock")} type="number" defaultValue={0} />
-
-        <Label>Imagen</Label>
-        <Input type="file" {...register("image")} />
-
-        {watch("image") instanceof FileList && watch("image") && (
-          <Image
-            src={URL.createObjectURL(watch("image")[0] as any)}
-            alt="Product Image"
-            className="w-20 h-20"
-            width={80}
-            height={80}
+          <Label>Descripción</Label>
+          <Controller
+            name="description"
+            control={control}
+            render={({ field }) => (
+              <QuillEditor value={field.value} onChange={field.onChange} onBlur={field.onBlur} />
+            )}
           />
-        )}
 
-        <Label>Categoría</Label>
-        <Select
-          //   isSearchable={false}
-          isMulti
-          options={categories.map((category) => ({
-            value: category.id,
-            label: category.name,
-          }))}
-          onChange={(options: any) => {
-            const ids = options.map((option: any) => option.value);
-            setValue("categories", ids);
-          }}
-        />
+          <Label>Precio (USD)</Label>
+          <Input {...register("price")} type="number" step="0.01" min="0" />
+          <ErrorText message={errors.price?.message} />
 
-        <Label>Slug</Label>
-        <Input {...register("slug")} />
+          <Label>Stock</Label>
+          <Input {...register("stock")} type="number" step="1" min="0" />
+          <ErrorText message={errors.stock?.message} />
 
-        <Button className="block mt-2" type="submit">
-          Crear Producto
-        </Button>
-      </form>
-    </Card>
+          <Label>Imagen</Label>
+          {product?.image && !previewUrl && (
+            <Image
+              src={product.image}
+              alt={product.name}
+              className="h-20 w-20 object-cover"
+              width={80}
+              height={80}
+            />
+          )}
+          <Input type="file" accept="image/*" {...register("image")} />
+          {previewUrl && (
+            // Vista previa local (blob:) que next/image no puede optimizar
+            <Image
+              src={previewUrl}
+              alt="Vista previa"
+              className="h-20 w-20 object-cover"
+              width={80}
+              height={80}
+              unoptimized
+            />
+          )}
+
+          <Label>Categorías</Label>
+          <Controller
+            name="categories"
+            control={control}
+            render={({ field }) => (
+              <Select
+                instanceId="product-categories"
+                isMulti
+                options={options}
+                value={options.filter((option) => field.value?.includes(option.value))}
+                onChange={(selected) => field.onChange(selected.map((option) => option.value))}
+              />
+            )}
+          />
+
+          <Label>Slug (opcional)</Label>
+          <Input {...register("slug")} placeholder="audifonos-bluetooth" />
+          <ErrorText message={errors.slug?.message} />
+
+          <Button className="mt-2 block" type="submit" disabled={isSubmitting}>
+            {isSubmitting ? "Guardando…" : product ? "Guardar cambios" : "Crear Producto"}
+          </Button>
+        </form>
+      </Card>
+    </div>
   );
 }
+
 export default ProductForm;

@@ -1,6 +1,10 @@
 import {
+  CreditCardIcon,
   FolderIcon,
+  HomeIcon,
   ListBulletIcon,
+  ShoppingBagIcon,
+  UserCircleIcon,
   UsersIcon,
 } from "@heroicons/react/24/solid";
 
@@ -31,26 +35,26 @@ export const dashboardRoutes = [
   {
     href: "/dashboard",
     text: "Dashboard",
-    icon: FolderIcon,
+    icon: HomeIcon,
     roles: ["admin", "user"],
   },
   {
     href: "/dashboard/profile",
-    text: "Profile",
+    text: "Perfil",
     roles: ["admin", "user"],
-    icon: FolderIcon,
+    icon: UserCircleIcon,
   },
   {
     href: "/dashboard/products",
     text: "Productos",
     roles: ["admin", "user"],
-    icon: FolderIcon,
+    icon: ShoppingBagIcon,
   },
   {
     href: "/dashboard/subscriptions",
-    text: "Subscriptions",
-    roles: ["admin", "user"],
-    icon: FolderIcon,
+    text: "Planes",
+    roles: ["admin"],
+    icon: CreditCardIcon,
   },
   {
     href: "/dashboard/categories",
@@ -66,7 +70,7 @@ export const dashboardRoutes = [
   },
   {
     href: "/dashboard/users",
-    text: "Users",
+    text: "Usuarios",
     icon: UsersIcon,
     roles: ["admin"],
   },

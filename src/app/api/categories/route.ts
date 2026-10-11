@@ -1,15 +1,29 @@
 import { NextResponse } from "next/server";
 import prisma from "@/libs/prisma";
+import { requireAdmin } from "@/libs/session";
+import { createCategorySchema } from "@/schemas/categorySchema";
+import { jsonError } from "@/libs/config";
+
+export async function GET() {
+  const categories = await prisma.category.findMany({ orderBy: { name: "asc" } });
+  return NextResponse.json(categories);
+}
 
 export async function POST(request: Request) {
-  const data = await request.json();
+  const { error } = await requireAdmin();
+  if (error) return error;
 
-  await prisma.category.create({
+  const parsed = createCategorySchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) {
+    return jsonError(parsed.error.issues[0]?.message ?? "Datos inválidos", 400);
+  }
+
+  const category = await prisma.category.create({
     data: {
-      name: data.name,
-      description: data.description,
+      name: parsed.data.name,
+      description: parsed.data.description ?? "",
     },
   });
 
-  return NextResponse.json("Producto creado");
+  return NextResponse.json(category, { status: 201 });
 }

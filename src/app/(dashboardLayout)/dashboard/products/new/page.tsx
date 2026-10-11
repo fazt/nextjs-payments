@@ -1,20 +1,20 @@
+import type { Metadata } from "next";
 import ProductForm from "@/components/products/ProductForm";
 import prisma from "@/libs/prisma";
-import { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Nextfull - Crear Producto",
+  title: "Crear Producto | Next Payments",
 };
 
-async function ProductPage() {
-  const categories = await prisma.category.findMany();
-  console.log(categories);
+export const dynamic = "force-dynamic";
 
-  return (
-    <>
-      <ProductForm categories={categories} />
-    </>
-  );
+async function NewProductPage() {
+  const categories = await prisma.category.findMany({
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+  });
+
+  return <ProductForm categories={categories} />;
 }
 
-export default ProductPage;
+export default NewProductPage;

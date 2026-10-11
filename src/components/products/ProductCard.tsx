@@ -1,64 +1,77 @@
 "use client";
-import { Product, User } from "@prisma/client";
+
 import Image from "next/image";
-import { useRouter } from "next/navigation";
-import { Button } from "../ui";
-import { useCartStore } from "@/store/cartStore";
+import { toast } from "sonner";
+import { Badge } from "../ui/Badge";
+import { Button } from "../ui/Button";
+import { useCartStore, type CartProduct } from "@/store/cartStore";
 
 interface Props {
-  product: Product & {
-    author: User;
+  product: CartProduct & {
+    authorName: string;
+    categories: string[];
   };
+}
+
+const money = new Intl.NumberFormat("es-PE", { style: "currency", currency: "USD" });
+
+/** Quita las etiquetas del HTML que genera el editor Quill para mostrar un resumen. */
+function plainText(html?: string | null) {
+  return (html ?? "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 }
 
 function ProductCard({ product }: Props) {
   const addToCart = useCartStore((state) => state.addToCart);
+  const outOfStock = (product.stock ?? 0) <= 0;
 
   return (
-    <div
-      key={product.id}
-      className="group relative flex flex-col overflow-hidden rounded-lg border border-gray-200 bg-white"
-    >
-      <div className="aspect-h-4 aspect-w-3 bg-gray-200 sm:aspect-none group-hover:opacity-75 sm:h-96">
-        <Image
-          src={product?.image || ""}
-          className="h-full w-full object-cover object-center sm:h-full sm:w-full"
-          alt={product.name}
-          width={300}
-          height={300}
-        />
+    <div className="group relative flex flex-col overflow-hidden rounded-lg border border-gray-200 bg-white">
+      <div className="bg-gray-200 group-hover:opacity-75 sm:h-96">
+        {product.image ? (
+          <Image
+            src={product.image}
+            className="h-full w-full object-cover object-center"
+            alt={product.name}
+            width={600}
+            height={600}
+          />
+        ) : (
+          <div className="flex h-64 items-center justify-center text-gray-400 sm:h-full">
+            Sin imagen
+          </div>
+        )}
       </div>
       <div className="flex flex-1 flex-col space-y-2 p-4">
-        <div className="flex justify-between">
-          <h3 className="text-sm font-medium text-gray-900">
-            <a href="#">{product.name}</a>
-          </h3>
-          <div>
-            <Image
-              className="inline-block h-12 w-12 rounded-full"
-              src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
-              alt=""
-              width={48}
-              height={48}
-            />
-            <span>{product.author.name}</span>
-          </div>
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="text-sm font-medium text-gray-900">{product.name}</h3>
+          <span className="text-xs text-gray-500">por {product.authorName}</span>
         </div>
-        <p className="text-sm text-gray-500">{product.description}</p>
-        <div className="flex flex-1 flex-col justify-end">
-          <p className="text-sm italic text-gray-500">{product.stock}</p>
-          <p className="text-base font-medium text-gray-900">{product.price}</p>
+        {product.categories.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {product.categories.map((name) => (
+              <Badge key={name}>{name}</Badge>
+            ))}
+          </div>
+        )}
+        <p className="line-clamp-3 text-sm text-gray-500">{plainText(product.description)}</p>
+        <div className="flex flex-1 flex-col justify-end gap-2">
+          <p className="text-sm italic text-gray-500">
+            {outOfStock ? "Agotado" : `${product.stock} en stock`}
+          </p>
+          <p className="text-base font-medium text-gray-900">{money.format(product.price)}</p>
           <Button
-            disabled={product.stock === 0}
-            onClick={async () => {
+            disabled={outOfStock}
+            onClick={() => {
               addToCart(product);
+              toast.success(`${product.name} añadido al carrito`);
             }}
           >
-            Add to cart
+            Añadir al carrito
           </Button>
         </div>
       </div>
     </div>
   );
 }
+
 export default ProductCard;
