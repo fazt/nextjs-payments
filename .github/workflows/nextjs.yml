@@ -1,73 +1,132 @@
-# Sample workflow for building and deploying a Next.js site to GitHub Pages
-#
-# To get started with Next.js see: https://nextjs.org/docs/getting-started
-#
-name: Deploy Next.js site to Pages
+# CI: lint, tests y build con PostgreSQL. El despliegue en el servidor propio
+# (runner self-hosted + pm2) solo se ejecuta si la variable del repositorio
+# DEPLOY_SELF_HOSTED vale "true" (Settings > Secrets and variables > Actions > Variables).
+name: CI
 
 on:
-  # Runs on pushes targeting the default branch
   push:
     branches: ["master"]
-
-  # Allows you to run this workflow manually from the Actions tab
+  pull_request:
   workflow_dispatch:
 
-# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
-# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
-# However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
-# concurrency:
-#   group: "pages"
-#   cancel-in-progress: false
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  # Build job
-  build:
-    runs-on: self-hosted
-
+  ci:
+    name: Lint, tests y build
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: fazt
+          POSTGRES_PASSWORD: faztpassword
+          POSTGRES_DB: nextfulldb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U fazt -d nextfulldb"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://fazt:faztpassword@localhost:5432/nextfulldb
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: ci-secret-only-for-tests
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
-      - name: Detect package manager
-        id: detect-package-manager
-        run: |
-          if [ -f "${{ github.workspace }}/yarn.lock" ]; then
-            echo "manager=yarn" >> $GITHUB_OUTPUT
-            echo "command=install" >> $GITHUB_OUTPUT
-            echo "runner=yarn" >> $GITHUB_OUTPUT
-            exit 0
-          elif [ -f "${{ github.workspace }}/package.json" ]; then
-            echo "manager=npm" >> $GITHUB_OUTPUT
-            echo "command=ci" >> $GITHUB_OUTPUT
-            echo "runner=npx --no-install" >> $GITHUB_OUTPUT
-            exit 0
-          else
-            echo "Unable to determine package manager"
-            exit 1
-          fi
+        uses: actions/checkout@v7
+
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: "20"
-          cache: ${{ steps.detect-package-manager.outputs.manager }}
-      - name: Install dependencies
-        run: ${{ steps.detect-package-manager.outputs.manager }} ${{ steps.detect-package-manager.outputs.command }}
-      - name: Creating a .env local file with multiple secrets
+          node-version: 24
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci # postinstall ejecuta prisma generate
+
+      - name: Migraciones y seed
         run: |
-          touch .env
-          echo DATABASE_URL=${{ secrets.DATABASE_URL }} >> .env
-          echo NEXTAUTH_URL=${{ secrets.NEXTAUTH_URL }} >> .env
-          echo NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }} >> .env
-          echo CLOUDINARY_CLOUD_NAME=${{ secrets.CLOUDINARY_CLOUD_NAME }} >> .env
-          echo CLOUDINARY_API_SECRET=${{ secrets.CLOUDINARY_API_SECRET }} >> .env
-          echo CLOUDINARY_API_KEY=${{ secrets.CLOUDINARY_API_KEY }} >> .env
-      - name: Build with Next.js
-        run: ${{ steps.detect-package-manager.outputs.runner }} next build
-      - name: install pm2
-        run: npm install pm2
-      - name: Run pm2
-        run: ${{ steps.detect-package-manager.outputs.runner }} pm2 start npm --name "nextjs" -- start
+          npx prisma migrate deploy
+          npx prisma db seed
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Tests
+        run: npm test
+
+      # Sin credenciales de pasarelas: la app debe compilar igual
+      - name: Build
+        run: npm run build
+
+  deploy:
+    name: Deploy (self-hosted + pm2)
+    needs: ci
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master' && vars.DEPLOY_SELF_HOSTED == 'true'
+    runs-on: self-hosted
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Crear .env con los secrets
+        run: |
+          {
+            echo "DATABASE_URL=${DATABASE_URL}"
+            echo "NEXTAUTH_URL=${NEXTAUTH_URL}"
+            echo "NEXTAUTH_SECRET=${NEXTAUTH_SECRET}"
+            echo "CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}"
+            echo "CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}"
+            echo "CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}"
+            echo "STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}"
+            echo "STRIPE_ENDPOINT_SECRET=${STRIPE_ENDPOINT_SECRET}"
+            echo "PAYPAL_API_URL=${PAYPAL_API_URL}"
+            echo "PAYPAL_CLIENT_ID=${PAYPAL_CLIENT_ID}"
+            echo "PAYPAL_CLIENT_SECRET=${PAYPAL_CLIENT_SECRET}"
+            echo "PAYPAL_WEBHOOK_ID=${PAYPAL_WEBHOOK_ID}"
+            echo "MERCADOPAGO_ACCESS_TOKEN=${MERCADOPAGO_ACCESS_TOKEN}"
+            echo "MERCADOPAGO_WEBHOOK_SECRET_KEY=${MERCADOPAGO_WEBHOOK_SECRET_KEY}"
+            echo "MERCADOPAGO_BACKEND_URL=${MERCADOPAGO_BACKEND_URL}"
+            echo "MERCADOPAGO_PUBLIC_KEY=${MERCADOPAGO_PUBLIC_KEY}"
+          } > .env
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL }}
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_ENDPOINT_SECRET: ${{ secrets.STRIPE_ENDPOINT_SECRET }}
+          PAYPAL_API_URL: ${{ secrets.PAYPAL_API_URL }}
+          PAYPAL_CLIENT_ID: ${{ secrets.PAYPAL_CLIENT_ID }}
+          PAYPAL_CLIENT_SECRET: ${{ secrets.PAYPAL_CLIENT_SECRET }}
+          PAYPAL_WEBHOOK_ID: ${{ secrets.PAYPAL_WEBHOOK_ID }}
+          MERCADOPAGO_ACCESS_TOKEN: ${{ secrets.MERCADOPAGO_ACCESS_TOKEN }}
+          MERCADOPAGO_WEBHOOK_SECRET_KEY: ${{ secrets.MERCADOPAGO_WEBHOOK_SECRET_KEY }}
+          MERCADOPAGO_BACKEND_URL: ${{ secrets.MERCADOPAGO_BACKEND_URL }}
+          MERCADOPAGO_PUBLIC_KEY: ${{ secrets.MERCADOPAGO_PUBLIC_KEY }}
+
+      - name: Migraciones
+        run: npx prisma migrate deploy
+
+      - name: Build
+        run: npm run build
+
+      - name: Reiniciar con pm2
+        run: npx --yes pm2@7 restart nextjs || npx --yes pm2@7 start npm --name nextjs -- start
