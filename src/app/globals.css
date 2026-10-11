@@ -1,4 +1,15 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
+/*
+  En Tailwind CSS v4 el color de borde por defecto pasó a `currentcolor`.
+  Estos estilos mantienen el aspecto que tenía la app con Tailwind v3.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}

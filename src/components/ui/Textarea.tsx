@@ -6,7 +6,7 @@ export const Textarea = forwardRef<
   React.TextareaHTMLAttributes<HTMLTextAreaElement>
 >(({ children, ...props }, ref) => {
   return (
-    <textarea className="bg-slate-200 rounded px-2 py-1" {...props} ref={ref}>
+    <textarea className="bg-slate-200 rounded-sm px-2 py-1" {...props} ref={ref}>
       {children}
     </textarea>
   );
